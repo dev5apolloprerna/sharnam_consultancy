@@ -75,7 +75,7 @@ return [
         ],
          'employees' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Employee::class,
+            'model' => App\Models\EmployeeMaster::class,
         ],
     ],
 

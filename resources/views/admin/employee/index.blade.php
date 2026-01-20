@@ -6,6 +6,7 @@
 @include('common.alert')
     <div class="main-content">
         <div class="page-content">
+            <div class="container-fluid">
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -18,12 +19,10 @@
         <a href="{{ route('admin.employee.create') }}" class="btn btn-success">Add New</a>
     </div>
     <div class="card">
-        <div class="card-body table-responsive">
-
+                        <div class="card-body table-responsive">
     <form id="bulkDeleteForm">
         <button type="button" id="bulkDeleteBtn" class="btn btn-danger mb-2">Delete Selected</button>
-                            <table class="table table-bordered align-middle">
-
+        <table class="table table-bordered align-middle">
             <thead>
                 <tr>
                     <th><input type="checkbox" id="checkAll"></th>
@@ -51,6 +50,8 @@
                     <td>
                         <a href="{{ route('admin.employee.edit', $employee->employee_id) }}" class="text-primary me-2"><i class="fas fa-edit"></i></a>
                         <a href="javascript:void(0);" class="text-danger deleteRecord" data-id="{{ $employee->employee_id }}"><i class="fas fa-trash"></i></a>
+                        <a href="javascript:void(0);" class="text-warning changePasswordBtn" data-id="{{ $employee->employee_id }}"><i class="fas fa-key"></i></a>
+                        <a href="javascript:void(0);" class="text-success vehicleInfoBtn" data-id="{{ $employee->employee_id }}"><i class="fas fa-car"></i></a>
                     </td>
                 </tr>
                 @empty
@@ -65,11 +66,87 @@
 </div>
 </div>
 </div>
+<!-- Vehicle Info Modal -->
+<div class="modal fade" id="vehicleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" id="vehicleForm">
+            @csrf
+            <input type="hidden" name="employee_id" id="vehicle_employee_id">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Vehicle Details</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Vehicle Name <span style="color:red;">*</span></label>
+                        <input type="text" name="vehicle_name" id="vehicle_name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Vehicle No <span style="color:red;">*</span></label>
+                        <input type="text" name="vehicle_no" id="vehicle_no" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- Change Password Modal -->
+<div class="modal fade" id="passwordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" id="passwordForm">
+            @csrf
+            <input type="hidden" name="employee_id" id="password_employee_id">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Change Password</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">New Password <span style="color:red;">*</span></label>
+                        <input type="password" name="new_password" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Confirm Password <span style="color:red;">*</span></label>
+                        <input type="password" name="confirm_password" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Update</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </form>
+    </div>
 </div>
 </div>
-
-
+</div>
+</div>
 <script>
+    $('.vehicleInfoBtn').click(function () {
+        const id = $(this).data('id');
+        $('#vehicle_employee_id').val(id);
+
+
+        $.get(`/admin/employee/${id}/vehicle`, function (res) {
+            $('#vehicle_name').val(res.vehicle?.vehicle_name || '');
+            $('#vehicle_no').val(res.vehicle?.vehicle_no || '');
+            $('#vehicleModal').modal('show');
+        });
+    });
+
+
+    $('#vehicleForm').submit(function (e) {
+        e.preventDefault();
+        $.post("/admin/employee/vehicle/save", $(this).serialize(), function () {
+            $('#vehicleModal').modal('hide');
+            location.reload();
+        });
+    });
+
     $('#checkAll').on('click', function () {
         $('.record-checkbox').prop('checked', $(this).prop('checked'));
     });
@@ -99,4 +176,19 @@
             });
         }
     });
+
+    $('.changePasswordBtn').click(function () {
+        const id = $(this).data('id');
+        $('#password_employee_id').val(id);
+        $('#passwordModal').modal('show');
+    });
+
+    $('#passwordForm').submit(function (e) {
+        e.preventDefault();
+        $.post("/admin/employee/change-password", $(this).serialize(), function () {
+            $('#passwordModal').modal('hide');
+            alert('Password updated successfully');
+        });
+    });
 </script>
+@endsection

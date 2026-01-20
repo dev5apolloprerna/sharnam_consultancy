@@ -48,7 +48,14 @@
                         <input type="text" name="designation" class="form-control" value="{{ old('designation', $employee->designation ?? '') }}">
                         @if($errors->has('designation'))<span class="text-danger">{{ $errors->first('designation') }}</span>@endif
                     </div>
+                    @if(!isset($employee))
                     <div class="col-md-6 mb-3">
+                        <label class="form-label">Password <span style="color:red;">*</span></label>
+                        <input type="password" name="password" class="form-control" value="{{ old('password', $employee->password ?? '') }}">
+                        @if($errors->has('password'))<span class="text-danger">{{ $errors->first('password') }}</span>@endif
+                    </div>
+                    @endif
+                    <!-- <div class="col-md-6 mb-3">
                         <label class="form-label">Vehicle <span style="color:red;">*</span></label>
                         <select name="vehicle_id" class="form-control">
                             <option value="">Select Vehicle</option>
@@ -59,7 +66,7 @@
                             @endforeach
                         </select>
                         @if($errors->has('vehicle_id'))<span class="text-danger">{{ $errors->first('vehicle_id') }}</span>@endif
-                    </div>
+                    </div> -->
                 </div>
                 <button type="submit" class="btn btn-primary">{{ isset($employee) ? 'Update' : 'Submit' }}</button>
                 <a href="{{ route('admin.employee.index') }}" class="btn btn-secondary">Back</a>

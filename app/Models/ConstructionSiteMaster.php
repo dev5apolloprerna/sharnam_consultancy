@@ -22,4 +22,10 @@ class ConstructionSiteMaster extends Model
         'iStatus',
         'isDelete',
     ];
+
+    public function assignedEmployees()
+    {
+        return $this->hasMany(SiteAssignEmployee::class, 'site_id')->where('isDelete', 0);
+    }
+
 }

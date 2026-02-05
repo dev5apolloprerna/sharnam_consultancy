@@ -25,13 +25,14 @@ class EmployeeLocationController extends Controller
             'employee_id' => $request->employee_id,
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
+            'address' => $request->address,
             'comments' => $request->comments ?? '',
             'iStatus' => 1,
             'isDelete' => 0,
             'created_at' => now()
         ]);
 
-        $this->sendLocationNotificationToAdmin($request->employee_id, $request->latitude, $request->longitude);
+        //$this->sendLocationNotificationToAdmin($request->employee_id, $request->latitude, $request->longitude);
 
         return response()->json(['success' => true, 'message' => 'Location stored successfully.']);
     }

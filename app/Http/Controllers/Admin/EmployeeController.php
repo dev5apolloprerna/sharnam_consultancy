@@ -12,6 +12,15 @@ class EmployeeController extends Controller
 {
     public function index(Request $request)
     {
+        $employees = EmployeeMaster::where('isDelete', 0)->orderBy('employee_id', 'desc')->paginate(10);
+        
+        $employee=$request->employee_name;
+        $phone=$request->employee_phone;
+        $email=$request->employee_email;
+        return view('admin.employee.index', compact('employees','employee','phone','email'));
+    }
+    public function search(Request $request)
+    {
         $query = EmployeeMaster::where('isDelete', 0);
 
         if ($request->employee_name) {
@@ -27,7 +36,11 @@ class EmployeeController extends Controller
         }
 
         $employees = $query->orderBy('employee_id', 'desc')->paginate(10);
-        return view('admin.employee.index', compact('employees'));
+        
+        $employee=$request->employee_name;
+        $phone=$request->employee_phone;
+        $email=$request->employee_email;
+        return view('admin.employee.index', compact('employees','employee','phone','email'));
     }
 
     public function create()
@@ -79,8 +92,9 @@ class EmployeeController extends Controller
         return redirect()->route('admin.employee.index')->with('success', 'Employee updated successfully.');
     }
 
-    public function changePassword(Request $request)
+    public function empchangePassword(Request $request)
     {
+        dd($request);
         $request->validate([
             'employee_id' => 'required|exists:employee_master,employee_id',
             'new_password' => 'required|min:6|same:confirm_password',

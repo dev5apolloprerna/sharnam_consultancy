@@ -36,18 +36,20 @@ return [
     */
 
     'guards' => [
-    'api' => [
-        'driver' => 'jwt',
-        'provider' => 'employees',
-    ],
+        'web' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
+        'web_employees' => [
+                'driver' => 'session',
+                'provider' => 'employees', // For employees, using the same session driver but different provider
+            ],
+        'api' => [
+                'driver' => 'jwt',
+                'provider' => 'users',
+        ],
 
-    // keep web guard etc
-    'web' => [
-        'driver' => 'session',
-        'provider' => 'users',
     ],
-],
-
 
     /*
     |--------------------------------------------------------------------------
@@ -67,18 +69,15 @@ return [
     */
 
     'providers' => [
-        'employees' => [
-            'driver' => 'eloquent',
-            'model' => App\Models\EmployeeMaster::class,
-        ],
-
-        // keep your existing users provider also if you have it
         'users' => [
             'driver' => 'eloquent',
             'model' => App\Models\User::class,
         ],
+         'employees' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\EmployeeMaster::class,
+        ],
     ],
-
 
     /*
     |--------------------------------------------------------------------------

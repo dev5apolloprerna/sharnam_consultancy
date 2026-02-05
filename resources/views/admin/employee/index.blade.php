@@ -3,69 +3,80 @@
 @section('title', 'Employee List')
 
 @section('content')
+<div class="main-content">
+    <div class="page-content">
+        <div class="container-fluid">
+          <div class="col-lg-12">
+            <div class="card">
+                <div class="card-header" style="display: flex;justify-content: space-between;">
+                    <h5 class="card-title mb-0">Employee List</h5>
+                    <a class="btn btn-primary" href="{{ route('admin.employee.create') }}">Add Employee</a>
+                </div>
 @include('common.alert')
-    <div class="main-content">
-        <div class="page-content">
-            <div class="container-fluid">
 
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <form class="d-flex" method="GET">
-            <input type="text" name="employee_name" value="{{ request('employee_name') }}" placeholder="Search Name" class="form-control me-2">
-            <input type="text" name="employee_phone" value="{{ request('employee_phone') }}" placeholder="Search Phone" class="form-control me-2">
-            <input type="text" name="employee_email" value="{{ request('employee_email') }}" placeholder="Search Email" class="form-control me-2">
-            <button class="btn btn-primary">Search</button>
-        </form>
-        <a href="{{ route('admin.employee.create') }}" class="btn btn-success">Add New</a>
-    </div>
-    <div class="card">
-                        <div class="card-body table-responsive">
-    <form id="bulkDeleteForm">
-        <button type="button" id="bulkDeleteBtn" class="btn btn-danger mb-2">Delete Selected</button>
-        <table class="table table-bordered align-middle">
-            <thead>
-                <tr>
-                    <th><input type="checkbox" id="checkAll"></th>
-                    <th>Name</th>
-                    <th>Phone</th>
-                    <th>Email</th>
-                    <th>Designation</th>
-                    <th>Salary</th>
-                    <th>Vehicle</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($employees as $employee)
-                <tr>
-                    <td><input type="checkbox" class="record-checkbox" value="{{ $employee->employee_id }}"></td>
-                    <td>{{ $employee->employee_name }}</td>
-                    <td>{{ $employee->employee_phone }}</td>
-                    <td>{{ $employee->employee_email }}</td>
-                    <td>{{ $employee->designation }}</td>
-                    <td>{{ $employee->basic_salary }}</td>
-                    <td>{{ $employee->vehicle->vehicle_name ?? '' }} {{ $employee->vehicle->vehicle_no ?? '' }}</td>
-                    <td>{{ $employee->iStatus ? 'Active' : 'Inactive' }}</td>
-                    <td>
-                        <a href="{{ route('admin.employee.edit', $employee->employee_id) }}" class="text-primary me-2"><i class="fas fa-edit"></i></a>
-                        <a href="javascript:void(0);" class="text-danger deleteRecord" data-id="{{ $employee->employee_id }}"><i class="fas fa-trash"></i></a>
-                        <a href="javascript:void(0);" class="text-warning changePasswordBtn" data-id="{{ $employee->employee_id }}"><i class="fas fa-key"></i></a>
-                        <a href="javascript:void(0);" class="text-success vehicleInfoBtn" data-id="{{ $employee->employee_id }}"><i class="fas fa-car"></i></a>
-                    </td>
-                </tr>
-                @empty
-                <tr><td colspan="9">No records found.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
-    </form>
-    <div class="d-flex justify-content-center">
-        {{ $employees->links() }}
-    </div>
-</div>
-</div>
-</div>
+                <div class="card-body">
+                    <div class="col-md-12 mt-3">
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                             <form action="{{ route('admin.employee.search') }}" method="POST" class="d-flex">
+                         @csrf
+                                <input type="text" name="employee_name" value="{{ $employee ?? '' }}" placeholder="Search Name" class="form-control me-2">
+                                <input type="text" name="employee_phone" value="{{ $phone ?? '' }}" placeholder="Search Phone" class="form-control me-2">
+                                <input type="text" name="employee_email" value="{{ $email ?? '' }}" placeholder="Search Email" class="form-control me-2">
+                                <button class="btn btn-primary">Search</button>
+                                <a class="btn btn-light  me-2" href="{{ route('admin.employee.index') }}">Clear</a>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body table-responsive">
+                    <form id="bulkDeleteForm">
+                        <button type="button" id="bulkDeleteBtn" class="btn btn-danger mb-2">Delete Selected</button>
+                        <table class="table table-bordered align-middle">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="checkAll"></th>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Designation</th>
+                                    <th>Salary</th>
+                                    <th>Vehicle</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($employees as $employee)
+                                <tr>
+                                    <td><input type="checkbox" class="record-checkbox" value="{{ $employee->employee_id }}"></td>
+                                    <td>{{ $employee->employee_name }}</td>
+                                    <td>{{ $employee->employee_phone }}</td>
+                                    <td>{{ $employee->employee_email }}</td>
+                                    <td>{{ $employee->designation }}</td>
+                                    <td>{{ $employee->basic_salary }}</td>
+                                    <td>{{ $employee->vehicle->vehicle_name ?? '' }} {{ $employee->vehicle->vehicle_no ?? '' }}</td>
+                                    <td>{{ $employee->iStatus ? 'Active' : 'Inactive' }}</td>
+                                    <td>
+                                        <a href="{{ route('admin.employee.edit', $employee->employee_id) }}" class="text-primary me-2"><i class="fas fa-edit"></i></a>
+                                        <a href="javascript:void(0);" class="text-danger deleteRecord" data-id="{{ $employee->employee_id }}"><i class="fas fa-trash"></i></a>
+                                        <a href="javascript:void(0);" class="text-warning changePasswordBtn" data-id="{{ $employee->employee_id }}"><i class="fas fa-key"></i></a>
+                                        <!-- <a href="javascript:void(0);" class="text-success vehicleInfoBtn" data-id="{{ $employee->employee_id }}"><i class="fas fa-car"></i></a> -->
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr><td colspan="9">No records found.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </form>
+                    <div class="d-flex justify-content-center">
+                        {{ $employees->links() }}
+                    </div>
+                </div>
+            </div>
+        </div>
 <!-- Vehicle Info Modal -->
 <div class="modal fade" id="vehicleModal" tabindex="-1">
     <div class="modal-dialog">
@@ -185,7 +196,7 @@
 
     $('#passwordForm').submit(function (e) {
         e.preventDefault();
-        $.post("/admin/employee/change-password", $(this).serialize(), function () {
+        $.post("../admin/employee/changepassword", $(this).serialize(), function () {
             $('#passwordModal').modal('hide');
             alert('Password updated successfully');
         });

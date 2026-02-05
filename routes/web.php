@@ -57,18 +57,28 @@ Route::middleware('auth')->prefix('users')->name('users.')->group(function () {
 
 
 Route::prefix('admin')->name('admin.')->group(function () {
+    Route::post('construction-site/search', [ConstructionSiteController::class, 'search'])->name('construction-site.search');
     Route::resource('construction-site', ConstructionSiteController::class);
     Route::post('construction-site/bulk-delete', [ConstructionSiteController::class, 'bulkDelete'])->name('construction-site.bulk-delete');
     Route::get('construction-site/{site_id}/employees', [ConstructionSiteController::class, 'employees']);
     Route::post('construction-site/assign-employees', [ConstructionSiteController::class, 'assignEmployees']);
 
+
+Route::get('construction-site/{site}/employee-vehicle', [ConstructionSiteController::class, 'employeeVehiclePage']);
+Route::post('construction-site/employee-vehicle/save', [ConstructionSiteController::class, 'saveAssignment']);
+Route::delete('construction-site/employee-vehicle/delete/{id}', [ConstructionSiteController::class, 'deleteAssignment'])->name('construction-site.assignment.delete');
+
+
 });
 
 
 Route::prefix('admin')->name('admin.')->group(function () {
+    
+    Route::post('employee/search', [EmployeeController::class, 'search'])->name('employee.search');
+
     Route::resource('employee', EmployeeController::class);
     Route::post('employee/bulk-delete', [EmployeeController::class, 'bulkDelete'])->name('employee.bulk-delete');
-    Route::post('employee/change-password', [EmployeeController::class, 'changePassword']);
+    Route::post('employee/changepassword', [EmployeeController::class, 'empchangePassword']);
 
     Route::get('employee/{id}/vehicle', [EmployeeController::class, 'getVehicle']);
     Route::post('employee/vehicle/save', [EmployeeController::class, 'saveVehicle']);
@@ -81,5 +91,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::resource('vehicle', VehicleController::class);
     Route::post('vehicle/bulk-delete', [VehicleController::class, 'bulkDelete'])->name('vehicle.bulk-delete');  
 });
+
 
 

@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use Illuminate\Support\Facades\File;
 
 use Illuminate\Http\Request;
 use App\Models\EmployeeMaster;
+use App\Models\EmployeeAttendance;
 
 class EmployeeAuthController extends Controller
 {
@@ -30,9 +32,25 @@ class EmployeeAuthController extends Controller
             ->where('iStatus', 1)
             ->first();
 
+        
         if (!$employee || !Hash::check($request->password, $employee->password)) {
             return response()->json(['status' => false, 'message' => 'Invalid login credentials'], 401);
         }
+        
+        $attendance = EmployeeAttendance::where('employee_id', $employee->employee_id)
+        ->whereDate('start_date_time', now()->toDateString())
+        ->whereNotNull('start_date_time')
+        ->first();
+
+        $isWorkStart = $attendance ? 1 : 0;
+        
+        $attendance1 = EmployeeAttendance::where('employee_id', $employee->employee_id)
+        ->whereDate('end_date_time', now()->toDateString())
+        ->whereNotNull('end_date_time')
+        ->first();
+
+        $isWorkEnd = $attendance1 ? 1 : 0;
+
 
         $token = JWTAuth::fromUser($employee);
 
@@ -40,7 +58,12 @@ class EmployeeAuthController extends Controller
             'status' => true,
             'message' => 'Login successful',
             'token' => $token,
-            'customer' => $employee
+            'isWorkStart' => $isWorkStart,
+            'isWorkEnd' => $isWorkEnd,
+            'customer' => $employee,
+             'profile_image_url' => !empty($employee->profile_image)
+                ? asset('/profile/' . $employee->profile_image)
+                : null
         ]);
     }
     public function profile(Request $request)
@@ -62,6 +85,9 @@ class EmployeeAuthController extends Controller
                 'employee_name'   => $employee->employee_name,
                 'employee_phone' => $employee->employee_phone,
                 'employee_email'  => $employee->employee_email,
+                 'profile_image_url' => !empty($employee->profile_image)
+                ? asset('/profile/' . $employee->profile_image)
+                : null,
                 'created_at'      => $employee->created_at,
             ]
         ]);
@@ -91,7 +117,7 @@ class EmployeeAuthController extends Controller
         $employee->employee_email  = $request->employee_email;
 
         // ✅ Upload profile image if provided
-       /* if ($request->hasFile('profile_image')) {
+        if ($request->hasFile('profile_image')) {
 
             $folderPath = base_path('../public_html/sharnam/profile'); // public_html/magazine/profile
             if (!File::exists($folderPath)) {
@@ -113,7 +139,7 @@ class EmployeeAuthController extends Controller
 
             // ✅ Save filename in DB column
             $employee->profile_image = $filename; // change column name if different
-        }*/
+        }
 
         $employee->save();
 
@@ -121,9 +147,9 @@ class EmployeeAuthController extends Controller
             'status'  => true,
             'message' => 'Profile updated successfully',
             'data'    => $employee,
-            /*'profile_image_url' => !empty($employee->profile_image)
+            'profile_image_url' => !empty($employee->profile_image)
                 ? asset('/profile/' . $employee->profile_image)
-                : null*/
+                : null
         ]);
     }
 

@@ -11,7 +11,7 @@
                 <!-- Left: Add New Vehicle -->
                 <div class="col-md-4">
                     <div class="card">
-                        <div class="card-header">Add Vehicle</div>
+                        <div class="card-header"><h5 class="card-title mb-0">Add Vehicle</h5></div>
                         <div class="card-body">
                             <form action="{{ route('admin.vehicle.store') }}" method="POST">
                                 @csrf
@@ -45,11 +45,16 @@
                 <div class="col-md-8">
                     <div class="card">
                         <div class="card-header">
+                            <h5 class="card-title mb-0">Vehicle List</h5>
                             <form class="d-flex" method="GET">
                                 <input type="text" name="vehicle_no" value="{{ request('vehicle_no') }}" placeholder="Search Vehicle No" class="form-control me-2">
                                 <input type="text" name="employee_name" value="{{ request('employee_name') }}" placeholder="Search Employee Name" class="form-control me-2">
-                                <button class="btn btn-primary">Search</button>
-                            </form>
+
+                                <div class="d-flex justify-content-between">
+                                    <button type="submit" class="btn btn-primary">Submit</button>
+                                    <a class="btn btn-light  me-2" href="{{ route('admin.vehicle.index') }}">Clear</a>
+                                </div>
+                      </form>
                         </div>
                         <div class="card-body">
                             <button class="btn btn-danger mb-2" id="bulkDeleteBtn">Delete Selected</button>

@@ -11,12 +11,6 @@ class EmployeeAttendance extends Model
     public $timestamps = true;
 
     protected $fillable = [
-        'employee_id',
-        'status',
-        'start_date_time',
-        'end_date_time',
-        'comments',
-        'iStatus',
-        'isDelete'
+        'attendence_id', 'employee_id', 'status', 'start_date_time', 'end_date_time', 'start_location', 'end_location', 'start_latitude', 'start_longitude', 'end_latitude', 'end_longitude', 'comments'
     ];
 }

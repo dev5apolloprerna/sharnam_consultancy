@@ -29,7 +29,7 @@ class EmployeeMaster extends Authenticatable implements JWTSubject
         'employee_address',
         'basic_salary',
         'password',
-        'vehicle_id',
+        'profile_image',
         'designation',
         'iStatus',
         'isDelete',

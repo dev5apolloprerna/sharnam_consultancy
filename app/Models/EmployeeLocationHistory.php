@@ -11,12 +11,13 @@ class EmployeeLocationHistory extends Model
 
     protected $table = 'employee_location_history';
     protected $primaryKey = 'location_id';
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $fillable = [
         'employee_id',
         'latitude',
         'longitude',
+        'address',
         'comments',
         'iStatus',
         'isDelete',

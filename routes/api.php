@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\UsersApiController;
 use App\Http\Controllers\Api\EmployeeAuthController;
 use App\Http\Controllers\Api\EmployeeLocationController;
 use App\Http\Controllers\Api\EmployeeAttendanceController;
+use App\Http\Controllers\Api\EmployeePasswordController;
 
 
 /*
@@ -19,11 +20,12 @@ use App\Http\Controllers\Api\EmployeeAttendanceController;
 |
 */
 Route::post('employee/login', [EmployeeAuthController::class, 'login']);
+    Route::post('employee/forgot-password', [EmployeePasswordController::class, 'forgot']);
+
 Route::middleware('auth:api')->group(function () {
-    Route::post('customer-profile', [CustomerAuthController::class, 'profile']);
-    Route::post('customer-profile/update', [CustomerAuthController::class, 'updateProfile']);
-    Route::post('customer/forgot-password', [CustomerPasswordController::class, 'forgot']);
-    Route::post('customer/change-password', [CustomerPasswordController::class, 'changePassword']);
+    Route::post('employee-profile', [EmployeeAuthController::class, 'profile']);
+    Route::post('employee-profile/update', [EmployeeAuthController::class, 'updateProfile']);
+    Route::post('employee/change-password', [EmployeePasswordController::class, 'changePassword']);
 
 });
 

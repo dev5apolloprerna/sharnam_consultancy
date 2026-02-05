@@ -20,10 +20,10 @@ class EmployeePasswordController extends Controller
     public function forgot(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            'employee_email' => 'required|email',
         ]);
 
-        $email = $request->email;
+        $email = $request->employee_email;
 
         $employee = EmployeeMaster::where($this->emailColumn, $email)->first();
         if (!$employee) {

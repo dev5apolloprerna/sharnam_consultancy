@@ -113,6 +113,9 @@
                              class="text-success" title="Assign">
                             <i class="fas fa-users-cog"></i>
                           </a>
+                          
+                         <a href="javascript:void(0);" class="text-warning assignEmployeeBtn" data-id="{{ $site->site_id }}" data-name="{{ $site->site_name }}"><i class="fas fa-user-plus"></i></a>
+
                         </td>
                       </tr>
                     @empty
@@ -131,10 +134,35 @@
 
           </div>
         </div>
-      </div>
+      
 
+<!-- Assign Modal -->
+<div class="modal fade" id="assignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" id="assignForm">
+            @csrf
+            <input type="hidden" name="site_id" id="assign_site_id">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Assign Employees to <span id="assign_site_name"></span></h5>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Select Employees <span style="color:red;">*</span></label>
+                        <div id="employeeCheckboxes" class="row"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </form>
     </div>
-  </div>
+</div>
+</div>
+</div>
+</div>
 </div>
 @endsection
 
@@ -201,5 +229,30 @@
       }
     });
   });
+  
+   $(document).on('click', '.assignEmployeeBtn', function () {
+        let site_id = $(this).data('id');
+        let site_name = $(this).data('name');
+        $('#assign_site_id').val(site_id);
+        $('#assign_site_name').text(site_name);
+
+        $.get(`../admin/construction-site/${site_id}/employees`, function (res) {
+            let html = '';
+            res.employees.forEach(emp => {
+                let checked = res.assigned.includes(emp.employee_id) ? 'checked' : '';
+                html += `<div class="col-md-6"><label><input type="checkbox" name="employee_ids[]" value="${emp.employee_id}" ${checked}> ${emp.employee_name}</label></div>`;
+            });
+            $('#employeeCheckboxes').html(html);
+            $('#assignModal').modal('show');
+        });
+    });
+
+    $('#assignForm').submit(function (e) {
+        e.preventDefault();
+        $.post("../admin/construction-site/assign-employees", $(this).serialize(), function () {
+            $('#assignModal').modal('hide');
+            location.reload(); // refresh the page after success
+        });
+    });
 </script>
 @endsection

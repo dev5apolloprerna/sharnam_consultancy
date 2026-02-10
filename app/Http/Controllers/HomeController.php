@@ -13,6 +13,8 @@ use App\Models\Role;
 use App\Models\ConstructionSiteMaster;
 use App\Models\VehicleMaster;
 use App\Models\EmployeeMaster;
+use App\Models\Accessories;
+
 
 
 class HomeController extends Controller
@@ -37,8 +39,9 @@ class HomeController extends Controller
         $constructionCount = ConstructionSiteMaster::where('isDelete', 0)->where('iStatus', 1)->count();
         $employeeCount = EmployeeMaster::where('isDelete', 0)->where('iStatus', 1)->count();
         $vehicleCount = VehicleMaster::where('isDelete', 0)->where('iStatus', 1)->count();
+        $Accessoriescount = Accessories::count();
 
-            return view('home',compact('constructionCount','employeeCount','vehicleCount'));
+            return view('home',compact('constructionCount','employeeCount','vehicleCount','Accessoriescount'));
     }
 
     /**

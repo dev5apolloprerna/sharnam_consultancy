@@ -9,6 +9,8 @@ use App\Models\EmployeeMaster;
 use App\Models\SiteAssignEmployee;
 use App\Models\VehicleMaster;
 use App\Models\SiteStatus;
+use App\Models\Accessories;
+use App\Models\ProjectAccessories;
 
 use Illuminate\Support\Facades\DB;
 
@@ -140,18 +142,31 @@ class ConstructionSiteController extends Controller
 
         $site = ConstructionSiteMaster::findOrFail($site_id);
         $employees = EmployeeMaster::where('iStatus', 1)->where('isDelete', 0)->orderBy('employee_name')->get();
-        $vehicles = VehicleMaster::where('iStatus', 1)->where('isDelete', 0)->orderBy('vehicle_name')->get();
+        $accessories = Accessories::orderBy('accessories_name')->get();
 
-        $assignments = DB::table('construction_employee_vehicle as sev')
+       /* $assignments = DB::table('construction_employee_vehicle as sev')
             ->join('employee_master as e', 'e.employee_id', '=', 'sev.employee_id')
             ->leftJoin('vehicle_master as v', 'v.vehicle_id', '=', 'sev.vehicle_id')
             ->where('sev.construction_id', $site_id)
             ->where('sev.isDelete', 0)
             ->select('sev.id', 'e.employee_name', 'v.vehicle_name', 'v.vehicle_no')
             ->get();
+*/
+$assignments = ProjectAccessories::join(
+        'accessories_master',
+        'accessories_master.accessories_id',
+        '=',
+        'project_accessories.accessories_id'
+    )
+    ->where('project_accessories.site_id', $site_id)
+    ->select(
+        'project_accessories.*',
+        'accessories_master.accessories_name'
+    )
+    ->get();
 
 
-        return view('admin.construction_site.employee_vehicle', compact('site', 'employees', 'vehicles', 'assignments'));
+        return view('admin.construction_site.site_accessories', compact('site', 'employees', 'assignments','accessories'));
     }
 
     public function saveAssignment(Request $request)

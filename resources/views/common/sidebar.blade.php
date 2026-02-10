@@ -31,6 +31,14 @@
                                 Vehicles
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a href="{{ route('accessories.index') }}"
+                               class="nav-link {{ request()->is('admin/accessories*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-cogs"></i>
+                                Accessories
+                            </a>
+                        </li>
+
                 </ul>
             </div>
             <!-- Sidebar -->

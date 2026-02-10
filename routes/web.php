@@ -94,3 +94,32 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
 
 
+// routes/web.php
+
+Route::prefix('admin')->middleware(['auth'])->group(function () {
+
+    Route::get('accessories', [App\Http\Controllers\Admin\AccessoriesController::class, 'index'])->name('accessories.index');
+    Route::post('accessories/store', [App\Http\Controllers\Admin\AccessoriesController::class, 'store'])->name('accessories.store');
+    Route::get('accessories/edit/{id}', [App\Http\Controllers\Admin\AccessoriesController::class, 'edit'])->name('accessories.edit');
+    Route::post('accessories/update/{id}', [App\Http\Controllers\Admin\AccessoriesController::class, 'update'])->name('accessories.update');
+    Route::delete('accessories/delete/{id}', [App\Http\Controllers\Admin\AccessoriesController::class, 'destroy'])->name('accessories.delete');
+
+    Route::post('accessories/bulk-delete', [App\Http\Controllers\Admin\AccessoriesController::class, 'bulkDelete'])
+        ->name('accessories.bulkDelete');
+});
+
+
+Route::prefix('admin')->group(function () {
+
+    Route::post(
+        'construction-site/accessories/save',
+        [App\Http\Controllers\Admin\ProjectAccessoriesController::class, 'store']
+    )->name('admin.construction-site.accessories.save');
+
+    Route::delete(
+        'construction-site/accessories/delete/{id}',
+        [App\Http\Controllers\Admin\ProjectAccessoriesController::class, 'destroy']
+    )->name('admin.construction-site.accessories.delete');
+
+});
+

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\EmployeeAuthController;
 use App\Http\Controllers\Api\EmployeeLocationController;
 use App\Http\Controllers\Api\EmployeeAttendanceController;
 use App\Http\Controllers\Api\EmployeePasswordController;
+use App\Http\Controllers\Api\DashboardController;
 
 
 /*
@@ -26,6 +27,8 @@ Route::middleware('auth:api')->group(function () {
     Route::post('employee-profile', [EmployeeAuthController::class, 'profile']);
     Route::post('employee-profile/update', [EmployeeAuthController::class, 'updateProfile']);
     Route::post('employee/change-password', [EmployeePasswordController::class, 'changePassword']);
+    Route::post('employee/dashboard', [DashboardController::class, 'dashboard']);
+
 
 });
 
@@ -33,3 +36,7 @@ Route::post('employee/attendance/start', [EmployeeAttendanceController::class, '
 Route::post('employee/attendance/end', [EmployeeAttendanceController::class, 'endDay']);
 
 Route::post('employee/location/track', [EmployeeLocationController::class, 'trackLocation']);
+
+
+
+

@@ -20,6 +20,7 @@ class EmployeeAttendanceController extends Controller
             $request->validate([
                 'employee_id' => 'required|exists:employee_master,employee_id',
                 // 'status' => 'required|in:P,A,H,L',
+                'site_id' => 'required',
                 'latitude' => 'required|string',
                 'longitude' => 'required|string',
                 'comments' => 'nullable|string|max:100'
@@ -46,6 +47,7 @@ class EmployeeAttendanceController extends Controller
 
         EmployeeAttendance::create([
             'employee_id' => $request->employee_id,
+            'site_id' => $request->site_id,
             'status' => 'P',
             'start_location' => $request->start_location,
             'start_date_time' => now(),
@@ -87,6 +89,7 @@ class EmployeeAttendanceController extends Controller
     {
         $request->validate([
             'employee_id' => 'required|exists:employee_master,employee_id',
+            'site_id' => 'required',
             'latitude' => 'required|string',
             'longitude' => 'required|string',
             'comments' => 'nullable|string|max:100'
@@ -112,6 +115,7 @@ class EmployeeAttendanceController extends Controller
 
 
         $attendance->update([
+            'site_id' => $request->site_id,
             'end_location' => $request->end_location,
             'end_date_time' => now(),
             'end_latitude' => $request->latitude,

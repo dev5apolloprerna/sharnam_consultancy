@@ -36,16 +36,16 @@ class EmployeeAttendanceController extends Controller
 
         $today = Carbon::today();
 
-        $existing = EmployeeAttendance::whereDate('start_date_time', $today)
-            ->where('employee_id', $request->employee_id)
+/*        $existing = EmployeeAttendance::whereDate('start_date_time', $today)
+            ->where('employee_id', $request->employee_id)->where('site_id',$request->site_id)
             ->first();
 
         if ($existing) {
             return response()->json(['success' => false, 'message' => 'Attendance already started for today.'], 409);
-        }
+        }*/
 
 
-        EmployeeAttendance::create([
+        $created = EmployeeAttendance::create([
             'employee_id' => $request->employee_id,
             'site_id' => $request->site_id,
             'status' => 'P',
@@ -73,78 +73,62 @@ class EmployeeAttendanceController extends Controller
             ->first();
         
         $isWorkStart = $attendance ? 1 : 0;
-    
-       $attendance1 = EmployeeAttendance::where('employee_id', $request->employee_id)
-        ->whereDate('end_date_time', now()->toDateString())
-        ->whereNotNull('end_date_time')
-        ->first();
-
-        $isWorkEnd = $attendance1 ? 1 : 0;
         
 
-        return response()->json(['success' => true, 'isWorkStart'=>$isWorkStart,'isWorkEnd'=>$isWorkEnd,'message' => 'Day started successfully.']);
+
+        return response()->json(['success' => true, 'attendance_id' => $created->attendence_id,'isWorkStart'=>$isWorkStart,'message' => 'Day started successfully.']);
     }
 
     public function endDay(Request $request)
     {
         $request->validate([
-            'employee_id' => 'required|exists:employee_master,employee_id',
-            'site_id' => 'required',
-            'latitude' => 'required|string',
-            'longitude' => 'required|string',
-            'comments' => 'nullable|string|max:100'
+            'employee_id'    => 'required|exists:employee_master,employee_id',
+            'attendance_id'  => 'required|integer',
+            'site_id'        => 'required',
+            'latitude'       => 'required|string',
+            'longitude'      => 'required|string',
+            'comments'       => 'nullable|string|max:100'
         ]);
-
-        $today = Carbon::today();
-
-        $attendance = EmployeeAttendance::whereDate('start_date_time', $today)
-            ->where('employee_id', $request->employee_id)
-            ->first();
-
-        if (!$attendance) {
-            return response()->json(['success' => false, 'message' => 'No start record found for today.'], 404);
-        }
-        
-        $existing = EmployeeAttendance::whereDate('end_date_time', $today)
-            ->where('employee_id', $request->employee_id)
-            ->first();
-
-        if ($existing) {
-            return response()->json(['success' => false, 'message' => 'Attendance already ended for today.'], 409);
-        }
-
-
-        $attendance->update([
-            'site_id' => $request->site_id,
-            'end_location' => $request->end_location,
-            'end_date_time' => now(),
-            'end_latitude' => $request->latitude,
-            'end_longitude' => $request->longitude,
-        ]);
-        
-        $attendance = EmployeeAttendance::where('employee_id', $request->employee_id)
-            ->whereDate('start_date_time', now()->toDateString())
-            ->whereNotNull('start_date_time')
-            ->whereNull('end_date_time')
-            ->first();
-        
-        $isWorkStart = $attendance ? 1 : 0;
     
-       $attendance1 = EmployeeAttendance::where('employee_id', $request->employee_id)
-        ->whereDate('end_date_time', now()->toDateString())
-        ->whereNotNull('end_date_time')
-        ->first();
-
-        $isWorkEnd = $attendance1 ? 1 : 0;
-        
-
-/*        EmployeeLocationHistory::create([
-            'employee_id' => $request->employee_id,
-            'latitude' => $request->latitude,
-            'longitude' => $request->longitude,
-            'comments' => 'End Day Location'
-        ]);*/
-
-        return response()->json(['success' => true, 'isWorkStart'=>$isWorkStart,'isWorkEnd'=>$isWorkEnd,'message' => 'Day ended successfully.']);
+        // Find attendance by ID + employee (and optional site)
+        $attendance = EmployeeAttendance::where('attendence_id', $request->attendance_id)   // <-- if PK is attendance_id, change this
+            ->where('employee_id', $request->employee_id)
+            ->where('site_id', $request->site_id)
+            ->where('iStatus', 1)
+            ->where('isDelete', 0)
+            ->first();
+    
+        if (!$attendance) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Attendance record not found.'
+            ], 404);
+        }
+    
+        // If already ended, stop
+        if (!empty($attendance->end_date_time)) {
+            return response()->json([
+                'success' => false,
+                'isWorkStart' => 0,
+                'message' => 'Day already ended for this attendance id.'
+            ], 409);
+        }
+    
+        // Update end info
+        $attendance->update([
+            'end_location'  => $request->end_location,
+            'end_date_time' => now(),
+            'end_latitude'  => $request->latitude,
+            'end_longitude' => $request->longitude,
+            // optional if you store comments on end too:
+            // 'comments'      => $request->comments ?? $attendance->comments,
+        ]);
+    
+        return response()->json([
+            'success'       => true,
+            'attendance_id' => $attendance->id,   // <-- if PK is attendance_id, change this
+            'isWorkStart'   => 0,
+            'message'       => 'Day ended successfully.'
+        ]);
     }
 }

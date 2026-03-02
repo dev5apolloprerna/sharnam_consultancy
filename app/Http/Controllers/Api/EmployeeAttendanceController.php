@@ -33,8 +33,24 @@ class EmployeeAttendanceController extends Controller
             ], 422);
         }
 
+        $todayyy = Carbon::today()->toDateString();
+
+        $onLeave = EmployeeLeaveMaster::where('employee_id', $request->employee_id)
+            ->whereDate('leave_date', $todayyy)
+            ->where('isDelete', 0)
+            ->where('iStatus', 1)
+            ->exists();
+
+        if ($onLeave) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are on leave today. Attendance cannot be started.'
+            ], 409);
+
 
         $today = Carbon::today();
+
+}
 
 /*        $existing = EmployeeAttendance::whereDate('start_date_time', $today)
             ->where('employee_id', $request->employee_id)->where('site_id',$request->site_id)

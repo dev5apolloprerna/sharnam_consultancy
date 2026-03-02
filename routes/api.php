@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\EmployeeLocationController;
 use App\Http\Controllers\Api\EmployeeAttendanceController;
 use App\Http\Controllers\Api\EmployeePasswordController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\EmployeeLeaveController;
+use App\Http\Controllers\Api\EmployeeCreditCollectionController;
 
 
 /*
@@ -37,6 +39,22 @@ Route::post('employee/attendance/end', [EmployeeAttendanceController::class, 'en
 
 Route::post('employee/location/track', [EmployeeLocationController::class, 'trackLocation']);
 
+Route::prefix('employee')->group(function () {
+    Route::get('leaves', [EmployeeLeaveController::class, 'index']);
+    Route::post('leaves', [EmployeeLeaveController::class, 'store']);
+    Route::post('leaves/show', [EmployeeLeaveController::class, 'show']);
+    Route::post('leaves/update', [EmployeeLeaveController::class, 'update']);
+    Route::post('leaves/delete ', [EmployeeLeaveController::class, 'destroy']);
+});
 
 
 
+Route::prefix('employee')->group(function () {
+    Route::post('/credit-list', [EmployeeCreditCollectionController::class, 'index']);
+    Route::post('/credit-store', [EmployeeCreditCollectionController::class, 'store']);
+    Route::post('/credit-show', [EmployeeCreditCollectionController::class, 'show']);
+    Route::post('credit-update', [EmployeeCreditCollectionController::class, 'update']);
+    Route::post('credit-delete', [EmployeeCreditCollectionController::class, 'destroy']);
+
+    Route::patch('{credit_id}/active', [EmployeeCreditCollectionController::class, 'toggleActive']);
+});

@@ -55,6 +55,9 @@ Route::prefix('employee')
     ->group(function () {
         Route::post('employee-ledger/list', [EmployeeLedgerApiController::class, 'ledgerList']);
         Route::post('employee-ledger/debit', [EmployeeLedgerApiController::class, 'debitExpense']);
+        Route::post('/employee-ledger/update', [EmployeeLedgerApiController::class, 'updateLedger']);
+        Route::post('/employee-ledger/delete', [EmployeeLedgerApiController::class, 'deleteLedger']);
+
     });
 
 

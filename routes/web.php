@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\VehicleController;
 use App\Http\Controllers\Admin\EmployeeCreditController;
 use App\Http\Controllers\Admin\EmployeeLeaveController;
 
+
 Route::fallback(function () {
      return view('errors.404');
 });
@@ -133,7 +134,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::get('employee-credit/create', [EmployeeCreditController::class, 'create'])->name('employee-credit.create');
     Route::post('employee-credit', [EmployeeCreditController::class, 'store'])->name('employee-credit.store');
 });
-
 
 Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/employee-leave', [EmployeeLeaveController::class, 'index'])->name('admin.employee_leave.index');

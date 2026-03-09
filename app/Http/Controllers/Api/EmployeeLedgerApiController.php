@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\EmployeeMaster;
 use App\Models\EmployeeCreditDebitHistory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -85,7 +87,10 @@ class EmployeeLedgerApiController extends Controller
         $prevBalance = $currBalance;
     }
 
-    $totalBalance = (float) ($rows->last()->credit_balance ?? 0);
+    //$totalBalance = (float) ($rows->last()->credit_balance ?? 0);
+    
+
+    $totalBalance = $totalCredit - $totalDebit;
 
     // return list DESC for UI (latest first) if you want
     $list = array_reverse($list);
@@ -180,4 +185,133 @@ class EmployeeLedgerApiController extends Controller
             ], 500);
         }
     }
+        public function updateLedger(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'ledger_id'       => 'required|integer|exists:employee_credit_debit_history,ledger_id',
+                'credit_balance'  => 'nullable|numeric|min:0',
+                'debit_balance'   => 'nullable|numeric|min:0',
+                'comment'         => 'nullable|string',
+                'date'            => 'nullable|date',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation error',
+                    'errors'  => $validator->errors()
+                ], 422);
+            }
+
+            $ledger = EmployeeCreditDebitHistory::where('ledger_id', $request->ledger_id)->first();
+
+            if (!$ledger) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ledger entry not found'
+                ], 404);
+            }
+
+            // optional: do not allow both empty
+            if (
+                !$request->has('credit_balance') &&
+                !$request->has('debit_balance') &&
+                !$request->has('comment') &&
+                !$request->has('date')
+            ) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Nothing to update'
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            if ($request->has('credit_balance')) {
+                $ledger->credit_balance = $request->credit_balance;
+            }
+
+            if ($request->has('debit_balance')) {
+                $ledger->debit_balance = $request->debit_balance;
+            }
+
+            if ($request->has('comment')) {
+                $ledger->comment = $request->comment;
+            }
+
+            if ($request->has('date')) {
+                $ledger->date = $request->date;
+            }
+
+            $ledger->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Ledger updated successfully',
+                'data'    => $ledger
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * POST /api/employee-ledger/delete
+     */
+    public function deleteLedger(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'ledger_id' => 'required|integer|exists:employee_credit_debit_history,ledger_id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation error',
+                    'errors'  => $validator->errors()
+                ], 422);
+            }
+
+            $ledger = EmployeeCreditDebitHistory::where('ledger_id', $request->ledger_id)->first();
+
+            if (!$ledger) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Ledger entry not found'
+                ], 404);
+            }
+
+            DB::beginTransaction();
+
+            $ledger->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Ledger deleted successfully'
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }

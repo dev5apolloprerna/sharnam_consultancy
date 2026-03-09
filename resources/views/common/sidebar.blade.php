@@ -38,7 +38,7 @@
                                 Accessories
                             </a>
                         </li>
-                        <li class="nav-item">
+                         <li class="nav-item">
                           <a href="{{ route('admin.employee_leave.index') }}"
                              class="nav-link {{ request()->routeIs('admin.employee_leave.*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-calendar-alt"></i>
@@ -74,8 +74,7 @@
                             </div>
                         </li>
 
-                        
-                    
+
                 </ul>
             </div>
             <!-- Sidebar -->

@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\EmployeePasswordController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EmployeeLeaveController;
 use App\Http\Controllers\Api\EmployeeCreditCollectionController;
+use App\Http\Controllers\Api\EmployeeLedgerApiController;
 
 
 /*
@@ -43,10 +44,18 @@ Route::prefix('employee')->group(function () {
     Route::get('leaves', [EmployeeLeaveController::class, 'index']);
     Route::post('leaves', [EmployeeLeaveController::class, 'store']);
     Route::post('leaves/show', [EmployeeLeaveController::class, 'show']);
+    Route::post('/leaves/list', [EmployeeLeaveController::class, 'leaveList']);
     Route::post('leaves/update', [EmployeeLeaveController::class, 'update']);
     Route::post('leaves/delete ', [EmployeeLeaveController::class, 'destroy']);
 });
 
+
+Route::prefix('employee')
+    ->middleware(['auth:api'])   // change to auth:sanctum if you use Sanctum
+    ->group(function () {
+        Route::post('employee-ledger/list', [EmployeeLedgerApiController::class, 'ledgerList']);
+        Route::post('employee-ledger/debit', [EmployeeLedgerApiController::class, 'debitExpense']);
+    });
 
 
 Route::prefix('employee')->group(function () {
@@ -58,3 +67,4 @@ Route::prefix('employee')->group(function () {
 
     Route::patch('{credit_id}/active', [EmployeeCreditCollectionController::class, 'toggleActive']);
 });
+

@@ -231,6 +231,67 @@ class EmployeeLeaveController extends Controller
             ]);
         });
     }
+    public function leaveList(Request $request)
+{
+    $request->validate([
+        'employee_id' => 'nullable|integer',
+        'status'      => 'nullable|in:pending,accepted,reject',
+        'from'        => 'nullable|date',
+        'to'          => 'nullable|date',
+    ]);
+
+    $base = EmployeeLeaveMaster::query()
+        ->where('employee_leave_master.isDelete', 0)
+        ->where('employee_leave_master.iStatus', 1);
+
+    // optional filters
+    if ($request->filled('employee_id')) {
+        $base->where('employee_leave_master.employee_id', (int)$request->employee_id);
+    }
+    if ($request->filled('status')) {
+        $base->where('employee_leave_master.status', $request->status);
+    }
+    if ($request->filled('from')) {
+        $base->whereDate('employee_leave_master.leave_date', '>=', $request->from);
+    }
+    if ($request->filled('to')) {
+        $base->whereDate('employee_leave_master.leave_date', '<=', $request->to);
+    }
+
+    // counts (same filters, but status-wise)
+    $countsQuery = clone $base;
+
+    $counts = [
+        'pending'  => (clone $countsQuery)->where('employee_leave_master.status', 'pending')->count(),
+        'accepted' => (clone $countsQuery)->where('employee_leave_master.status', 'accepted')->count(),
+        'reject'   => (clone $countsQuery)->where('employee_leave_master.status', 'reject')->count(),
+        'total'    => (clone $countsQuery)->count(),
+    ];
+
+    // list with employee name (adjust table/columns if different)
+    $data = $base
+        ->leftJoin('employee_master', 'employee_master.employee_id', '=', 'employee_leave_master.employee_id')
+        ->orderBy('employee_leave_master.leave_date', 'desc')
+        ->orderBy('employee_leave_master.emp_leave_id', 'desc')
+        ->get([
+            'employee_leave_master.emp_leave_id',
+            'employee_leave_master.employee_id',
+            'employee_master.employee_name', // change if your column name is different
+            'employee_leave_master.leave_date',
+            'employee_leave_master.leave_type',
+            'employee_leave_master.comment',
+            'employee_leave_master.status',
+            'employee_leave_master.reason',
+            'employee_leave_master.created_at',
+            'employee_leave_master.updated_at',
+        ]);
+
+    return response()->json([
+        'success' => true,
+        'counts'  => $counts,
+        'data'    => $data,
+    ]);
+}
 
     // DELETE /api/employee/leaves/{id}
     // soft-delete leave and soft-delete auto attendance for that date
@@ -260,8 +321,10 @@ class EmployeeLeaveController extends Controller
 
             // Remove only if it's absent due to leave (you can tighten this condition as you want)
             if ($attendance && $attendance->status === 'A') {
-                $attendance->update(['isDelete' => 1, 'updated_at' => now()]);
+                $attendance->delete();
             }
+
+            $leave->delete();
 
             return response()->json([
                 'success' => true,

@@ -38,7 +38,44 @@
                                 Accessories
                             </a>
                         </li>
+                        <li class="nav-item">
+                          <a href="{{ route('admin.employee_leave.index') }}"
+                             class="nav-link {{ request()->routeIs('admin.employee_leave.*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-calendar-alt"></i>
+                            <p>Employee Leave</p>
+                          </a>
+                        </li>
+                        <li class="nav-item">
+                                <a class="nav-link" href="#sidebarMore" data-bs-toggle="collapse" role="button"
+                                    aria-expanded="true" aria-controls="sidebarMore">
+                                    <i class="fa fa-list text-white"></i>Employee Ledger</a>
+                                <div class="menu-dropdown collapse show" id="sidebarMore" style="">
+                                    <ul class="nav nav-sm flex-column">
+                                        @php
+                            $seg2 = request()->segment(2); // after /admin
+                                        $isCreditMenu = in_array($seg2, ['employee-credit']);
+                                    @endphp
+                                    <li class="nav-item">
+                                        <a href="{{ route('admin.employee-credit.create') }}"
+                                           class="nav-link {{ request()->routeIs('admin.employee-credit.create') ? 'active' : '' }}">
+                                            <i class="far fa-credit-card nav-icon"></i>
+                                            <p>Add Credit</p>
+                                        </a>
+                                    </li>
 
+                                    <li class="nav-item">
+                                        <a href="{{ route('admin.employee-credit.index') }}"
+                                           class="nav-link {{ request()->routeIs('admin.employee-credit.index') ? 'active' : '' }}">
+                                            <i class="fa fa-list nav-icon"></i>
+                                            <p>Ledger List</p>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
+
+                        
+                    
                 </ul>
             </div>
             <!-- Sidebar -->

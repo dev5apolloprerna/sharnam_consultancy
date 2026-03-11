@@ -25,11 +25,13 @@ class ConstructionSiteMaster extends Model
 
     public function assignedEmployees()
     {
-        return $this->hasMany(SiteAssignEmployee::class, 'site_id','site_id')->where('isDelete', 0);
-    }
-    public function siteStatus()
-    {
-        return $this->belongsTo(SiteStatus::class, 'site_status_id')->where('isDelete', 0);
+        return $this->hasMany(SiteAssignEmployee::class, 'site_id', 'site_id')
+            ->where('isDelete', 0);
     }
 
+    public function siteStatus()
+    {
+        return $this->belongsTo(SiteStatus::class, 'site_status_id')
+            ->where('isDelete', 0);
+    }
 }

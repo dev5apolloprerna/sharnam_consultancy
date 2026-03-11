@@ -102,41 +102,73 @@ class ConstructionSiteController extends Controller
         return response()->json(['success' => true, 'message' => 'Selected sites deleted successfully.']);
     }
     public function employees($site_id)
-    {
-        $employees = EmployeeMaster::where('isDelete', 0)->orderBy('employee_name')->get(['employee_id', 'employee_name']);
+{
+    $employees = EmployeeMaster::where('isDelete', 0)
+        ->orderBy('employee_name')
+        ->get(['employee_id', 'employee_name']);
 
-        $assigned = SiteAssignEmployee::where('site_id', $site_id)
-            ->where('isDelete', 0)
-            ->pluck('site_emp_id')
-            ->toArray();
+    $assignedRows = SiteAssignEmployee::where('site_id', $site_id)
+        ->where('isDelete', 0)
+        ->get(['site_emp_id', 'is_site_manager']);
 
-        return response()->json([
-            'employees' => $employees,
-            'assigned' => $assigned
-        ]);
-    }
+    $assigned = $assignedRows->map(function ($row) {
+        return [
+            'employee_id' => (int) $row->site_emp_id,
+            'is_site_manager' => (int) $row->is_site_manager,
+        ];
+    })->values();
 
-    // Save assigned employees (AJAX)
-    public function assignEmployees(Request $request)
-    {
-        $site_id = $request->site_id;
-        $employee_ids = $request->employee_ids ?? [];
+    return response()->json([
+        'employees' => $employees,
+        'assigned'  => $assigned,
+    ]);
+}
 
-        // First, soft delete all current assignments
+public function assignEmployees(Request $request)
+{
+    $request->validate([
+        'site_id' => 'required|exists:construction_site_master,site_id',
+        'employee_ids' => 'nullable|array',
+        'employee_ids.*' => 'integer|exists:employee_master,employee_id',
+        'is_site_manager' => 'nullable|array',
+    ]);
+
+    $site_id = $request->site_id;
+    $employee_ids = $request->employee_ids ?? [];
+    $managerFlags = $request->is_site_manager ?? [];
+
+    DB::beginTransaction();
+
+    try {
+        // Soft delete or hard delete based on your current table handling
         SiteAssignEmployee::where('site_id', $site_id)->delete();
 
-        // Then, insert new ones
         foreach ($employee_ids as $emp_id) {
             SiteAssignEmployee::create([
-                'site_id' => $site_id,
-                'site_emp_id' => $emp_id,
-                'iStatus' => 1,
-                'isDelete' => 0
+                'site_id'          => $site_id,
+                'site_emp_id'      => $emp_id,
+                'is_site_manager'  => isset($managerFlags[$emp_id]) && (int)$managerFlags[$emp_id] === 1 ? 1 : 0,
+                'iStatus'          => 1,
+                'isDelete'         => 0,
             ]);
         }
 
-        return response()->json(['success' => true]);
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Employees assigned successfully.'
+        ]);
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Something went wrong while assigning employees.',
+            'error'   => $e->getMessage(),
+        ], 500);
     }
+}
     public function employeeVehiclePage($site_id)
     {
 

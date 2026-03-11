@@ -10,10 +10,10 @@ use App\Models\SiteAssignEmployee;
 
 class DashboardController extends Controller
 {
-    public function dashboard(Request $request)
+      public function dashboard(Request $request)
     {
         $employeeId = $request->user()->employee_id;
-
+    
         if (empty($employeeId)) {
             return response()->json([
                 'status' => false,
@@ -21,13 +21,14 @@ class DashboardController extends Controller
                 'data' => []
             ], 422);
         }
-
-        // Today range
+    
+        // Today range (server timezone)
         $todayStart = Carbon::now()->startOfDay();
         $todayEnd   = Carbon::now()->endOfDay();
-
+    
         /**
-         * Step 1: latest attendance row id per site for today
+         * SIMPLE & SAFE:
+         * Step 1: get latest attendance row id per site (today)
          */
         $latestIdPerSite = DB::table('employee_attendance as ea')
             ->where('ea.employee_id', $employeeId)
@@ -35,14 +36,14 @@ class DashboardController extends Controller
             ->where('ea.isDelete', 0)
             ->whereBetween('ea.start_date_time', [$todayStart, $todayEnd])
             ->groupBy('ea.site_id')
-            ->selectRaw('ea.site_id, MAX(ea.attendence_id) as latest_id');
-
+            ->selectRaw('ea.site_id, MAX(ea.attendence_id) as latest_id'); // <-- if PK is attendance_id, use MAX(ea.attendance_id)
+    
         /**
-         * Step 2: full latest attendance record per site
+         * Step 2: get full latest record by joining above result
          */
         $latestAttendancePerSite = DB::table('employee_attendance as ea')
             ->joinSub($latestIdPerSite, 'mx', function ($join) {
-                $join->on('mx.latest_id', '=', 'ea.attendence_id');
+                $join->on('mx.latest_id', '=', 'ea.attendence_id'); // <-- if PK is attendance_id, use ea.attendance_id
             })
             ->select([
                 'ea.attendence_id',
@@ -50,60 +51,50 @@ class DashboardController extends Controller
                 'ea.start_date_time',
                 'ea.end_date_time',
             ]);
-
+    
         /**
-         * Assigned sites from site_assign_employees
-         * Attendance data only for work status
+         * Assigned sites + latest attendance row (today) + single flag
          */
         $sites = SiteAssignEmployee::query()
-            ->from('site_assign_employees')
-            ->where('site_assign_employees.site_emp_id', $employeeId)
-            ->where('site_assign_employees.iStatus', 1)
-            ->where('site_assign_employees.isDelete', 0)
-            ->leftJoin('construction_site_master as s', 's.site_id', '=', 'site_assign_employees.site_id')
-            ->leftJoinSub($latestAttendancePerSite, 'la', function ($join) {
-                $join->on('la.site_id', '=', 'site_assign_employees.site_id');
-            })
-            ->select([
-                'site_assign_employees.assign_id',
-                'site_assign_employees.site_emp_id',
-                'site_assign_employees.site_id', // ✅ site_id from assignment table
-                'site_assign_employees.iStatus',
-                'site_assign_employees.isDelete',
-
-                's.site_name',
-                's.site_address',
-
-                'la.attendence_id', // only attendance info from employee_attendance
-                DB::raw('la.start_date_time as today_start_time'),
-                DB::raw('la.end_date_time as today_end_time'),
-                DB::raw("CASE 
-                            WHEN la.start_date_time IS NOT NULL 
-                                 AND la.end_date_time IS NULL 
-                            THEN 1 
-                            ELSE 0 
-                         END as isWorkStart"),
-            ])
-            ->orderBy('site_assign_employees.assign_id', 'desc')
-            ->get();
-
+                ->where('site_assign_employees.site_emp_id', $employeeId)
+                ->where('site_assign_employees.iStatus', 1)
+                ->where('site_assign_employees.isDelete', 0)
+                ->leftJoin('construction_site_master as s', 's.site_id', '=', 'site_assign_employees.site_id')
+                ->leftJoinSub($latestAttendancePerSite, 'la', function ($join) {
+                    $join->on('la.site_id', '=', 'site_assign_employees.site_id');
+                })
+                ->select([
+                    'site_assign_employees.assign_id',
+                    'site_assign_employees.site_id',
+                    's.site_name',
+                    's.site_address',
+            
+                    DB::raw('la.site_id'),                 // ✅ attendance id for endDay API
+                    DB::raw('la.attendence_id'),                 // ✅ attendance id for endDay API
+                    DB::raw('la.start_date_time as today_start_time'),
+                    DB::raw('la.end_date_time as today_end_time'),
+            
+                    DB::raw("CASE WHEN la.start_date_time IS NOT NULL AND la.end_date_time IS NULL THEN 1 ELSE 0 END as isWorkStart"),
+                ])
+                ->orderBy('site_assign_employees.assign_id', 'desc')
+                ->get();    
         /**
-         * Overall latest attendance row today
+         * Overall latest attendance row (today across all sites)
          */
         $overallLatest = DB::table('employee_attendance')
             ->where('employee_id', $employeeId)
             ->where('iStatus', 1)
             ->where('isDelete', 0)
             ->whereBetween('start_date_time', [$todayStart, $todayEnd])
-            ->orderByDesc('attendence_id')
+            ->orderByDesc('attendence_id') // <-- if PK is attendance_id, use orderByDesc('attendance_id')
             ->first();
-
+    
         $overall = [
             'isWorkStart'      => ($overallLatest && $overallLatest->start_date_time && empty($overallLatest->end_date_time)) ? 1 : 0,
             'today_start_time' => $overallLatest->start_date_time ?? null,
             'today_end_time'   => $overallLatest->end_date_time ?? null,
         ];
-
+    
         return response()->json([
             'status' => true,
             'message' => 'Logged-in employee assigned sites',

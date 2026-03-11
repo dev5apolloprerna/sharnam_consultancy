@@ -17,6 +17,7 @@ class SiteAssignEmployee extends Model
         'assign_id',
         'site_id',
         'site_emp_id',
+        'is_site_manager',
         'iStatus',
         'isDelete',
     ];

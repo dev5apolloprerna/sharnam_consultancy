@@ -12,7 +12,7 @@ use App\Http\Controllers\Api\EmployeeLeaveController;
 use App\Http\Controllers\Api\EmployeeCreditCollectionController;
 use App\Http\Controllers\Api\EmployeeLedgerApiController;
 use App\Http\Controllers\Api\EmployeeLeaveManagerController;
-
+use App\Http\Controllers\Api\EmployeeSalaryApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -78,3 +78,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/manager/employee-leave-action', [EmployeeLeaveManagerController::class, 'managerEmployeeLeaveAction']);
 });
 
+
+
+Route::post('employee/salary/list', [EmployeeSalaryApiController::class, 'salaryList']);
+Route::post('employee/salary-slip', [EmployeeSalaryApiController::class, 'salaryPdfDownload']);

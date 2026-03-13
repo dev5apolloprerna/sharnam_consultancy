@@ -31,8 +31,15 @@ class EmployeeMaster extends Authenticatable implements JWTSubject
         'password',
         'profile_image',
         'designation',
+        'resign_date',
+        'last_working_date',
         'iStatus',
         'isDelete',
+    ];
+
+    protected $casts = [
+        'resign_date' => 'date',
+        'last_working_date' => 'date',
     ];
 
     public function getJWTIdentifier()
@@ -52,5 +59,12 @@ class EmployeeMaster extends Authenticatable implements JWTSubject
     public function vehicle()
     {
         return $this->belongsTo(VehicleMaster::class, 'vehicle_id');
+    }
+    public function checkResignStatus()
+    {
+        if ($this->last_working_date && Carbon::today()->greaterThan($this->last_working_date)) {
+            $this->iStatus = 0;
+            $this->save();
+        }
     }
 }

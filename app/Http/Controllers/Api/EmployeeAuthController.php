@@ -29,7 +29,6 @@ class EmployeeAuthController extends Controller
 
         $employee = EmployeeMaster::where('employee_phone', $request->employee_phone)
             ->where('isDelete', 0)
-            ->where('iStatus', 1)
             ->first();
 
         
@@ -37,6 +36,28 @@ class EmployeeAuthController extends Controller
             return response()->json(['status' => false, 'message' => 'Invalid login credentials'], 401);
         }
         
+         if (!empty($employee->last_working_date) && now()->toDateString() > $employee->last_working_date) {
+            if ((int) $employee->iStatus === 1) {
+                $employee->iStatus = 0;
+                $employee->save();
+            }
+        }
+
+        if ((int) $employee->iStatus !== 1) {
+            return response()->json(['status' => false, 'message' => 'Your account is inactive. Please contact admin.'], 403);
+        }
+
+        if($employee){
+
+            if($employee->is_resigned == 1 && now()->gt($employee->last_working_date)){
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Your account is inactive. Please contact admin.'
+                ]);
+            }
+
+        }
+
         $attendance = EmployeeAttendance::where('employee_id', $employee->employee_id)
         ->whereDate('start_date_time', now()->toDateString())
         ->whereNotNull('start_date_time')

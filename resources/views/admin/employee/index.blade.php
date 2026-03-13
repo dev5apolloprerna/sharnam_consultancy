@@ -62,6 +62,7 @@
                                         <a href="{{ route('admin.employee.edit', $employee->employee_id) }}" class="text-primary me-2"><i class="fas fa-edit"></i></a>
                                         <a href="javascript:void(0);" class="text-danger deleteRecord" data-id="{{ $employee->employee_id }}"><i class="fas fa-trash"></i></a>
                                         <a href="javascript:void(0);" class="text-warning changePasswordBtn" data-id="{{ $employee->employee_id }}"><i class="fas fa-key"></i></a>
+                                         <a href="javascript:void(0);" class="text-secondary ms-1 resignBtn" data-id="{{ $employee->employee_id }}" title="Resign"><i class="fas fa-user-slash"></i></a>
                                         <!-- <a href="javascript:void(0);" class="text-success vehicleInfoBtn" data-id="{{ $employee->employee_id }}"><i class="fas fa-car"></i></a> -->
                                     </td>
                                 </tr>
@@ -77,6 +78,35 @@
                 </div>
             </div>
         </div>
+<!-- Resign Employee Modal -->
+<div class="modal fade" id="resignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" id="resignForm">
+            @csrf
+            <input type="hidden" name="employee_id" id="resign_employee_id">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Resign Employee</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Resign Date <span style="color:red;">*</span></label>
+                        <input type="date" name="resign_date" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Last Working Date <span style="color:red;">*</span></label>
+                        <input type="date" name="last_working_date" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Vehicle Info Modal -->
 <div class="modal fade" id="vehicleModal" tabindex="-1">
     <div class="modal-dialog">
@@ -201,5 +231,29 @@
             alert('Password updated successfully');
         });
     });
+ $('.resignBtn').click(function () {
+        const id = $(this).data('id');
+        $('#resign_employee_id').val(id);
+        $('#resignForm')[0].reset();
+        $('#resign_employee_id').val(id);
+        $('#resignModal').modal('show');
+    });
+
+    $('#resignForm').submit(function (e) {
+        e.preventDefault();
+        $.post("{{ route('admin.employee.resign') }}", $(this).serialize(), function (res) {
+            $('#resignModal').modal('hide');
+            alert(res.message || 'Resignation details saved successfully');
+            location.reload();
+        }).fail(function (xhr) {
+            if (xhr.responseJSON && xhr.responseJSON.errors) {
+                const errors = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                alert(errors);
+                return;
+            }
+            alert('Unable to save resignation details.');
+        });
+    });
+
 </script>
 @endsection

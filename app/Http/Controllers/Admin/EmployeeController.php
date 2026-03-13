@@ -149,5 +149,34 @@ class EmployeeController extends Controller
 
         return response()->json(['success' => true]);
     }
+     public function resign(Request $request)
+    {
+        $request->validate([
+            'employee_id' => 'required|exists:employee_master,employee_id',
+            'resign_date' => 'required|date',
+            'last_working_date' => 'required|date|after_or_equal:resign_date',
+        ]);
+
+        $employee = EmployeeMaster::findOrFail((int) $request->employee_id);
+
+        $lastWorkingDate = \Carbon\Carbon::parse($request->last_working_date)->toDateString();
+        $isInactive = $lastWorkingDate <= now()->toDateString();
+
+        $employee->resign_date = $request->resign_date;
+        $employee->last_working_date = $lastWorkingDate;
+
+        if ($isInactive) {
+            $employee->iStatus = 0;
+        }
+
+        $employee->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Resignation details saved successfully.',
+            'employee_status' => $employee->iStatus ? 'Active' : 'Inactive',
+        ]);
+    }
+
 
 }

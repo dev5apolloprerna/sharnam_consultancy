@@ -12,7 +12,7 @@ use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\VehicleController;
 use App\Http\Controllers\Admin\EmployeeCreditController;
 use App\Http\Controllers\Admin\EmployeeLeaveController;
-
+use App\Http\Controllers\Admin\SalaryProcessController;
 
 Route::fallback(function () {
      return view('errors.404');
@@ -85,8 +85,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     Route::get('employee/{id}/vehicle', [EmployeeController::class, 'getVehicle']);
     Route::post('employee/vehicle/save', [EmployeeController::class, 'saveVehicle']);
-
-
+    Route::post('employee/resign', [EmployeeController::class, 'resign'])->name('employee.resign');
 });
 
 
@@ -138,4 +137,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
 Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/employee-leave', [EmployeeLeaveController::class, 'index'])->name('admin.employee_leave.index');
     Route::post('/employee-leave/status', [EmployeeLeaveController::class, 'updateStatus'])->name('admin.employee_leave.status');
+});
+
+Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
+    Route::get('salary-process', [SalaryProcessController::class, 'index'])->name('salary-process.index');
+    Route::post('salary-process', [SalaryProcessController::class, 'store'])->name('salary-process.store');
+    Route::get('salary-process/{salaryId}/slip', [SalaryProcessController::class, 'downloadSlip'])->name('salary-process.slip');
 });

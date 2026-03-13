@@ -11,7 +11,19 @@ class EmployeeLeaveMaster extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'employee_id','leave_date','leave_type','comment','status','reason',
-        'iStatus','isDelete','created_at','updated_at'
+        'employee_id',
+        'leave_date',
+        'leave_type',
+        'comment',
+        'status',
+        'reason',
+        'approved_by',
+        'iStatus',
+        'isDelete',
     ];
+
+    public function employee()
+    {
+        return $this->belongsTo(EmployeeMaster::class, 'employee_id', 'employee_id');
+    }
 }

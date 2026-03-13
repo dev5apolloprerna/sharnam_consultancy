@@ -42,8 +42,14 @@
                           <a href="{{ route('admin.employee_leave.index') }}"
                              class="nav-link {{ request()->routeIs('admin.employee_leave.*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-calendar-alt"></i>
-                            <p>Employee Leave</p>
+                            Employee Leave
                           </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{{ route('admin.salary-process.index') }}" class="nav-link {{ request()->is('admin/salary-process*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-money-bill-wave"></i>Salary Process
+                            </a>
                         </li>
                         <li class="nav-item">
                                 <a class="nav-link" href="#sidebarMore" data-bs-toggle="collapse" role="button"

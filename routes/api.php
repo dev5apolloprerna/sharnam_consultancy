@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EmployeeLeaveController;
 use App\Http\Controllers\Api\EmployeeCreditCollectionController;
 use App\Http\Controllers\Api\EmployeeLedgerApiController;
+use App\Http\Controllers\Api\EmployeeLeaveManagerController;
 
 
 /*
@@ -69,5 +70,11 @@ Route::prefix('employee')->group(function () {
     Route::post('credit-delete', [EmployeeCreditCollectionController::class, 'destroy']);
 
     Route::patch('{credit_id}/active', [EmployeeCreditCollectionController::class, 'toggleActive']);
+});
+
+
+Route::middleware('auth:api')->group(function () {
+    Route::post('/manager/employee-leave-list', [EmployeeLeaveManagerController::class, 'managerEmployeeLeaveList']);
+    Route::post('/manager/employee-leave-action', [EmployeeLeaveManagerController::class, 'managerEmployeeLeaveAction']);
 });
 

@@ -58,6 +58,7 @@ Route::prefix('employee')
         Route::post('employee-ledger/debit', [EmployeeLedgerApiController::class, 'debitExpense']);
         Route::post('/employee-ledger/update', [EmployeeLedgerApiController::class, 'updateLedger']);
         Route::post('/employee-ledger/delete', [EmployeeLedgerApiController::class, 'deleteLedger']);
+        Route::post('salary/list', [EmployeeSalaryApiController::class, 'salaryListing']);
 
     });
 
@@ -80,5 +81,5 @@ Route::middleware('auth:api')->group(function () {
 
 
 
-Route::post('employee/salary/list', [EmployeeSalaryApiController::class, 'salaryList']);
-Route::post('employee/salary-slip', [EmployeeSalaryApiController::class, 'salaryPdfDownload']);
+// Route::post('employee/salary/list', [EmployeeSalaryApiController::class, 'salaryList']);
+Route::middleware(['auth:api'])->get('employee/salary-slip/pdf', [EmployeeSalaryApiController::class, 'salarySlipPdf'])->name('api.employee.salary-slip.pdf');

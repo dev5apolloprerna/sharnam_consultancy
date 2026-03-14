@@ -3,11 +3,11 @@
  namespace App\Http\Controllers\Admin;
  
  use App\Http\Controllers\Controller;
- use App\Models\EmployeeAttendance;
+use App\Models\EmployeeAttendance;
  use App\Models\EmployeeMaster;
  use App\Models\EmployeeSalaryPayment;
  use Barryvdh\DomPDF\Facade\Pdf;
- use Carbon\Carbon;
+use Carbon\Carbon;
  use Illuminate\Http\Request;
  use Illuminate\Support\Facades\DB;
  
@@ -27,7 +27,6 @@
              ->orderBy('employee_name')
              ->get();
  
-
         $pendingEmployeeIds = $pendingEmployees->pluck('employee_id')->map(fn ($id) => (int) $id)->all();
         $leaveCounts = $this->leaveCountsByEmployee($selectedMonth, $selectedYear, $pendingEmployeeIds);
 
@@ -61,8 +60,8 @@
              'selected_employee_ids.*' => 'required|integer|exists:employee_master,employee_id',
              'deductions' => 'nullable|array',
              'deductions.*' => 'nullable|numeric|min:0',
-/*-            'leave_deductions' => 'nullable|array',
--            'leave_deductions.*' => 'nullable|numeric|min:0',*/
+             'leave_deductions' => 'nullable|array',
+             'leave_deductions.*' => 'nullable|numeric|min:0',
          ], [
              'selected_employee_ids.required' => 'Please select at least one employee.',
              'paid_date.required' => 'Please select paid date.',
@@ -90,14 +89,14 @@
  
                  $amount = (float) ($employees[$employeeId]->basic_salary ?? 0);
                  $deduction = (float) ($request->input("deductions.$employeeId", 200));
-/*-                $leaveDeduction = (float) ($request->input("leave_deductions.$employeeId", 0));*/
-                $leaveDeduction = $this->calculateLeaveDeduction(
+                $autoLeaveDeduction = $this->calculateLeaveDeduction(
                     $amount,
                     (int) $validated['salary_month'],
                     (int) $validated['salary_year'],
                     $employeeId,
                     $leaveCounts
                 );
+                $leaveDeduction = (float) $request->input("leave_deductions.$employeeId", $autoLeaveDeduction);
 
                  $totalDeduction = $deduction + $leaveDeduction;
                  $netAmount = $amount - $totalDeduction;
@@ -105,8 +104,7 @@
                  if ($netAmount < 0) {
                      DB::rollBack();
                      return back()->withInput()->withErrors([
-/*-                        "leave_deductions.$employeeId" => "Total deduction cannot be greater than salary for {$employees[$employeeId]->employee_name}.",*/
-                        "deductions.$employeeId" => "Total deduction cannot be greater than salary for {$employees[$employeeId]->employee_name}.",
+                         "leave_deductions.$employeeId" => "Total deduction cannot be greater than salary for {$employees[$employeeId]->employee_name}.",
                      ]);
                  }
  
@@ -136,7 +134,6 @@
      public function downloadSlip($salaryId)
      {
          $salary = EmployeeSalaryPayment::with('employee:employee_id,employee_name,basic_salary')->findOrFail($salaryId);
-/*-        $leaveCounts = $this->leaveCountsByEmployee((int) $salary->salary_month, (int) $salary->salary_year);*/
         $leaveCounts = $this->leaveCountsByEmployee((int) $salary->salary_month, (int) $salary->salary_year, [(int) $salary->employee_id]);
  
          $salary->full_day_leave = $leaveCounts[$salary->employee_id]['full_day'] ?? 0;
@@ -154,7 +151,6 @@
  
     private function leaveCountsByEmployee(int $month, int $year, ?array $employeeIds = null): array
      {
-
         $startDate = Carbon::create($year, $month, 1)->startOfDay();
         $endDate = $startDate->copy()->endOfMonth();
         $daysInMonth = (int) $endDate->day;
@@ -182,7 +178,6 @@
             if ($existing === null || $unit < $existing) {
                 $dailyUnits[$employeeId][$date] = $unit;
              }
-
         }
 
         $counts = [];
@@ -231,30 +226,28 @@
     }
 
     private function leaveSummaryForEmployee(float $salary, array $employeeLeave, int $month, int $year): array
-{
-    $fullDayLeave = (float) ($employeeLeave['full_day'] ?? 0);
-    $halfDayLeave = (float) ($employeeLeave['half_day'] ?? 0);
+    {
+        $fullDayLeave = (float) ($employeeLeave['full_day'] ?? 0);
+        $halfDayLeave = (float) ($employeeLeave['half_day'] ?? 0);
+        $halfDayUnits = $halfDayLeave * 0.5;
+        $totalLeaveUnits = $fullDayLeave + $halfDayUnits;
+        $freeLeaveUnits = 2.0;
+        $excessLeaveUnits = max(0, $totalLeaveUnits - $freeLeaveUnits);
 
-    $totalLeaveUnits = $fullDayLeave + ($halfDayLeave * 0.5);
+        $daysInMonth = max(1, cal_days_in_month(CAL_GREGORIAN, $month, $year));
+        $perDaySalary = $salary / $daysInMonth;
+        $leaveDeduction = round($perDaySalary * $excessLeaveUnits, 2);
 
-    $freeLeaveUnits = 2.0;
-    $excessLeaveUnits = max(0, $totalLeaveUnits - $freeLeaveUnits);
-
-    $daysInMonth = max(1, cal_days_in_month(CAL_GREGORIAN, $month, $year));
-    $perDaySalary = $salary / $daysInMonth;
-
-    $leaveDeduction = round($perDaySalary * $excessLeaveUnits, 2);
-
-    return [
-        'full_day' => (int) $fullDayLeave,
-        'half_day' => (int) $halfDayLeave,
-        'total_units' => $totalLeaveUnits,
-        'free_units' => $freeLeaveUnits,
-        'chargeable_units' => $excessLeaveUnits,
-        'per_day_salary' => $perDaySalary,
-        'leave_deduction' => $leaveDeduction,
-    ];
-}
+        return [
+            'full_day' => (int) $fullDayLeave,
+            'half_day' => (int) $halfDayLeave,
+            'total_units' => $totalLeaveUnits,
+            'free_units' => $freeLeaveUnits,
+            'chargeable_units' => $excessLeaveUnits,
+            'per_day_salary' => $perDaySalary,
+            'leave_deduction' => $leaveDeduction,
+        ];
+    }
 
     private function calculateLeaveDeduction(float $salary, int $month, int $year, int $employeeId, ?array $leaveCounts = null): float
     {

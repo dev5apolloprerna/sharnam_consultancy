@@ -1,10 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="main-content">
-    <div class="page-content">
-        <div class="container-fluid">
-         @if(session('success'))
+<div class="page-content">
+    <div class="container-fluid">
+        @if(session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>
         @endif
         @if(session('error'))
@@ -71,7 +70,7 @@
                                     ];
                                     $deduct = (float) old('deductions.' . $employee->employee_id, 200);
                                     $amount = (float) $employee->basic_salary;
-                                    $leaveDeduct = (float) $leaveSummary['leave_deduction'];
+                                    $leaveDeduct = (float) old('leave_deductions.' . $employee->employee_id, $leaveSummary['leave_deduction']);
                                     $net = max(0, $amount - $deduct - $leaveDeduct);
                                 @endphp
                                 <tr>
@@ -105,7 +104,8 @@
                                         @error('deductions.' . $employee->employee_id)<span class="text-danger">{{ $message }}</span>@enderror
                                     </td>
                                     <td>
-                                        <input type="number" step="0.01" min="0" class="form-control leave-deduction-input" data-employee-id="{{ $employee->employee_id }}" value="{{ $leaveDeduct }}" readonly>
+                                        <input type="number" step="0.01" min="0" class="form-control leave-deduction-input" name="leave_deductions[{{ $employee->employee_id }}]" data-employee-id="{{ $employee->employee_id }}" value="{{ $leaveDeduct }}">
+                                        @error('leave_deductions.' . $employee->employee_id)<span class="text-danger">{{ $message }}</span>@enderror
                                     </td>
                                     <td><strong class="net-text" id="net_{{ $employee->employee_id }}">{{ number_format($net, 2) }}</strong></td>
                                 </tr>
@@ -180,8 +180,6 @@
         </div>
     </div>
 </div>
-</div>
-
 @endsection
 
 @section('scripts')
@@ -203,7 +201,7 @@
         }
     }
 
-    document.querySelectorAll('.deduction-input').forEach(function (input) {
+    document.querySelectorAll('.deduction-input, .leave-deduction-input').forEach(function (input) {
         const employeeId = input.dataset.employeeId;
         updateNet(employeeId);
         input.addEventListener('input', function () { updateNet(employeeId); });

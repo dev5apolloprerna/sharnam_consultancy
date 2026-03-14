@@ -58,6 +58,8 @@ class ConstructionSiteController extends Controller
             'site_pincode' => 'required|numeric',
             'site_radious_distance' => 'required|max:100',
             'site_status_id' => 'required|integer',
+            'latitude' => 'required',
+            'longitude' => 'required',
         ]);
 
         ConstructionSiteMaster::create($request->all());
@@ -79,6 +81,8 @@ class ConstructionSiteController extends Controller
             'site_pincode' => 'required|numeric',
             'site_radious_distance' => 'required|max:100',
             'site_status_id' => 'required|integer',
+            'latitude' => 'required',
+            'longitude' => 'required',
         ]);
 
         $site = ConstructionSiteMaster::findOrFail($id);

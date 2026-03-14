@@ -73,6 +73,9 @@ class DashboardController extends Controller
 
                 's.site_name',
                 's.site_address',
+                's.latitude',
+                's.longitude',
+                's.site_radious_distance',
 
                 'la.attendence_id', // only attendance info from employee_attendance
                 DB::raw('la.start_date_time as today_start_time'),

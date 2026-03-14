@@ -40,8 +40,8 @@
                         @if($errors->has('latitude'))<span class="text-danger">{{ $errors->first('latitude') }}</span>@endif
                     </div><div class="col-md-6 mb-3">
                         <label class="form-label">Longitude <span style="color:red;">*</span></label>
-                        <input type="text" name="longitude" class="form-control" value="{{ old('longitude', $site->{'longitude'} ?? '') }}">
-                        @if($errors->has('longitude'))<span class="text-danger">{{ $errors->first('longitude') }}</span>@endif
+                        <input type="text" name="longitude  " class="form-control" value="{{ old('longitude   ', $site->{'longitude  '} ?? '') }}">
+                        @if($errors->has('longitude '))<span class="text-danger">{{ $errors->first('longitude    ') }}</span>@endif
                     </div><div class="col-md-6 mb-3">
                         <label class="form-label">Radius Distance <span style="color:red;">*</span></label>
                         <input type="text" name="site_radious_distance" class="form-control" value="{{ old('site_radious_distance', $site->{'site_radious_distance'} ?? '') }}">

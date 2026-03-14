@@ -19,6 +19,8 @@ class ConstructionSiteMaster extends Model
         'site_pincode',
         'site_radious_distance',
         'site_status_id',
+        'latitude',
+        'longitude',
         'iStatus',
         'isDelete',
     ];

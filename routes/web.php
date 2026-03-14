@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\VehicleController;
 use App\Http\Controllers\Admin\EmployeeCreditController;
 use App\Http\Controllers\Admin\EmployeeLeaveController;
+use App\Http\Controllers\Admin\EmployeeLocationHistoryController;
 use App\Http\Controllers\Admin\SalaryProcessController;
 
 Route::fallback(function () {
@@ -143,4 +144,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::get('salary-process', [SalaryProcessController::class, 'index'])->name('salary-process.index');
     Route::post('salary-process', [SalaryProcessController::class, 'store'])->name('salary-process.store');
     Route::get('salary-process/{salaryId}/slip', [SalaryProcessController::class, 'downloadSlip'])->name('salary-process.slip');
+});
+
+
+Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
+    Route::get('employee-location-history', [EmployeeLocationHistoryController::class, 'index'])
+        ->name('employee-location-history.index');
 });

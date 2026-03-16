@@ -37,6 +37,7 @@
                             <thead>
                                 <tr>
                                     <th><input type="checkbox" id="checkAll"></th>
+                                    <th>Member Id</th>
                                     <th>Name</th>
                                     <th>Phone</th>
                                     <th>Email</th>
@@ -51,6 +52,7 @@
                                 @forelse($employees as $employee)
                                 <tr>
                                     <td><input type="checkbox" class="record-checkbox" value="{{ $employee->employee_id }}"></td>
+                                    <td>{{ $employee->member_id }}</td>
                                     <td>{{ $employee->employee_name }}</td>
                                     <td>{{ $employee->employee_phone }}</td>
                                     <td>{{ $employee->employee_email }}</td>

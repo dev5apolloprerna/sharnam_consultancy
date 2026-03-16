@@ -49,23 +49,44 @@ class EmployeeController extends Controller
         return view('admin.employee.add_edit', compact('vehicles'));
     }
 
-    public function store(Request $request)
+        public function store(Request $request)
     {
         $request->validate([
-            'employee_name' => 'required|max:200',
-            'employee_phone' => 'required|max:20',
-            'employee_email' => 'required|email|max:200',
+            'employee_name'    => 'required|max:200',
+            'employee_phone'   => 'required|max:20',
+            'employee_email'   => 'required|email|max:200|unique:employee_master,employee_email',
             'employee_address' => 'required|max:255',
-            'basic_salary' => 'required|numeric',
-            // 'vehicle_id' => 'nullable|integer',
-            'designation' => 'required|max:200',
-            'password' => 'required|min:6',
+            'basic_salary'     => 'required|numeric',
+            'designation'      => 'required|max:200',
+            'joining_date'     => 'required|date',
+            'password'         => 'required|min:6',
         ]);
-
-        EmployeeMaster::create($request->all());
-
+    
+        $employee = new EmployeeMaster();
+        $employee->employee_name    = $request->employee_name;
+        $employee->employee_phone   = $request->employee_phone;
+        $employee->employee_email   = $request->employee_email;
+        $employee->employee_address = $request->employee_address;
+        $employee->basic_salary     = $request->basic_salary;
+        $employee->designation      = $request->designation;
+        $employee->joining_date     = $request->joining_date;
+        $employee->password         = Hash::make($request->password);
+    
+        // if you have other fields, set them here
+        // $employee->vehicle_id = $request->vehicle_id;
+    
+        $employee->save();
+        
+    
+        // Generate member_id = joining year + auto employee_id
+        $joiningYear = date('Y', strtotime($employee->joining_date));
+        $employee->member_id = $joiningYear . str_pad($employee->employee_id, 4, '0', STR_PAD_LEFT);
+        $employee->save();
+    
         return redirect()->route('admin.employee.index')->with('success', 'Employee added successfully.');
     }
+    
+
 
     public function edit($id)
     {
@@ -76,19 +97,40 @@ class EmployeeController extends Controller
 
     public function update(Request $request, $id)
     {
-        $request->validate([
-            'employee_name' => 'required|max:200',
-            'employee_phone' => 'required|max:20',
-            'employee_email' => 'required|email|max:200',
-            'employee_address' => 'required|max:255',
-            'basic_salary' => 'required|numeric',
-            // 'vehicle_id' => 'nullable|integer',
-            'designation' => 'required|max:200',
-        ]);
-
         $employee = EmployeeMaster::findOrFail($id);
-        $employee->update($request->all());
-
+    
+        $request->validate([
+            'employee_name'    => 'required|max:200',
+            'employee_phone'   => 'required|max:20',
+            'employee_email'   => 'required|email|max:200|unique:employee_master,employee_email,' . $employee->employee_id . ',employee_id',
+            'employee_address' => 'required|max:255',
+            'basic_salary'     => 'required|numeric',
+            'designation'      => 'required|max:200',
+            'joining_date'     => 'required|date',
+            'password'         => 'nullable|min:6',
+        ]);
+    
+        $employee->employee_name    = $request->employee_name;
+        $employee->employee_phone   = $request->employee_phone;
+        $employee->employee_email   = $request->employee_email;
+        $employee->employee_address = $request->employee_address;
+        $employee->basic_salary     = $request->basic_salary;
+        $employee->designation      = $request->designation;
+        $employee->joining_date     = $request->joining_date;
+    
+        // if you have other fields, set them here
+        // $employee->vehicle_id = $request->vehicle_id;
+    
+        if (!empty($request->password)) {
+            $employee->password = Hash::make($request->password);
+        }
+    
+        // Re-generate member_id if joining date changed
+        $joiningYear = date('Y', strtotime($request->joining_date));
+        $employee->member_id = $joiningYear . str_pad($employee->employee_id, 4, '0', STR_PAD_LEFT);
+    
+        $employee->save();
+    
         return redirect()->route('admin.employee.index')->with('success', 'Employee updated successfully.');
     }
 

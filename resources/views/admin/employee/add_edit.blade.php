@@ -44,6 +44,12 @@
                         @if($errors->has('basic_salary'))<span class="text-danger">{{ $errors->first('basic_salary') }}</span>@endif
                     </div>
                     <div class="col-md-6 mb-3">
+                        <label class="form-label">Joining Date <span style="color:red;">*</span></label>
+                        <input type="date" name="joining_date" class="form-control" value="{{ old('joining_date', $employee->joining_date ?? '') }}">
+                        @if($errors->has('joining_date'))<span class="text-danger">{{ $errors->first('joining_date') }}</span>@endif
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
                         <label class="form-label">Designation <span style="color:red;">*</span></label>
                         <input type="text" name="designation" class="form-control" value="{{ old('designation', $employee->designation ?? '') }}">
                         @if($errors->has('designation'))<span class="text-danger">{{ $errors->first('designation') }}</span>@endif

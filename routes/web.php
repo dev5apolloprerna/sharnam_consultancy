@@ -68,11 +68,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('construction-site/assign-employees', [ConstructionSiteController::class, 'assignEmployees']);
 
 
+Route::get('construction-site/{site}/employee-accessories', [ConstructionSiteController::class, 'employeeAccessoriesPage']);
+
 Route::get('construction-site/{site}/employee-vehicle', [ConstructionSiteController::class, 'employeeVehiclePage']);
 Route::post('construction-site/employee-vehicle/save', [ConstructionSiteController::class, 'saveAssignment']);
 Route::delete('construction-site/employee-vehicle/delete/{id}', [ConstructionSiteController::class, 'deleteAssignment'])->name('construction-site.assignment.delete');
 
-
+Route::post('construction-site/change-status', [ConstructionSiteController::class, 'changeStatus'])->name('construction-site.change-status');
 });
 
 

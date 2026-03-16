@@ -11,6 +11,7 @@ use App\Models\VehicleMaster;
 use App\Models\SiteStatus;
 use App\Models\Accessories;
 use App\Models\ProjectAccessories;
+use Illuminate\Support\Facades\Auth;
 
 use Illuminate\Support\Facades\DB;
 
@@ -178,39 +179,50 @@ public function assignEmployees(Request $request)
 
         $site = ConstructionSiteMaster::findOrFail($site_id);
         $employees = EmployeeMaster::where('iStatus', 1)->where('isDelete', 0)->orderBy('employee_name')->get();
-        $accessories = Accessories::orderBy('accessories_name')->get();
+        $vehicles = VehicleMaster::where('iStatus', 1)->where('isDelete', 0)->orderBy('vehicle_name')->get();
 
-       /* $assignments = DB::table('construction_employee_vehicle as sev')
+        $assignments = DB::table('construction_employee_vehicle as sev')
             ->join('employee_master as e', 'e.employee_id', '=', 'sev.employee_id')
             ->leftJoin('vehicle_master as v', 'v.vehicle_id', '=', 'sev.vehicle_id')
             ->where('sev.construction_id', $site_id)
             ->where('sev.isDelete', 0)
             ->select('sev.id', 'e.employee_name', 'v.vehicle_name', 'v.vehicle_no')
             ->get();
-*/
-$assignments = ProjectAccessories::join(
-        'accessories_master',
-        'accessories_master.accessories_id',
-        '=',
-        'project_accessories.accessories_id'
-    )
-    ->where('project_accessories.site_id', $site_id)
-    ->select(
-        'project_accessories.*',
-        'accessories_master.accessories_name'
-    )
-    ->get();
+
+
+        return view('admin.construction_site.employee_vehicle', compact('site', 'employees', 'vehicles', 'assignments'));
+    }
+    public function employeeAccessoriesPage($site_id)
+    {
+
+        $site = ConstructionSiteMaster::findOrFail($site_id);
+        $employees = EmployeeMaster::where('iStatus', 1)->where('isDelete', 0)->orderBy('employee_name')->get();
+        $accessories = Accessories::orderBy('accessories_name')->get();
+
+  
+        $assignments = ProjectAccessories::join(
+            'accessories_master',
+            'accessories_master.accessories_id',
+            '=',
+            'project_accessories.accessories_id'
+        )
+        ->where('project_accessories.site_id', $site_id)
+        ->select(
+            'project_accessories.*',
+            'accessories_master.accessories_name'
+        )
+        ->get();
 
 
         return view('admin.construction_site.site_accessories', compact('site', 'employees', 'assignments','accessories'));
     }
 
-    public function saveAssignment(Request $request)
+   public function saveAssignment(Request $request)
 {
     $request->validate([
-        'site_id' => 'required|exists:construction_site_master,site_id',
+        'site_id'     => 'required|exists:construction_site_master,site_id',
         'employee_id' => 'required|exists:employee_master,employee_id',
-        'vehicle_id' => 'nullable|exists:vehicle_master,vehicle_id',
+        'vehicle_id'  => 'nullable|exists:vehicle_master,vehicle_id',
     ]);
 
     $alreadyAssigned = DB::table('construction_employee_vehicle')
@@ -219,31 +231,80 @@ $assignments = ProjectAccessories::join(
         ->where('isDelete', 0)
         ->exists();
 
-        $alreadyAssignedVehicle = DB::table('construction_employee_vehicle')
-        ->where('construction_id', $request->site_id)
-        ->where('vehicle_id', $request->vehicle_id)
-        ->where('isDelete', 0)
-        ->exists();
-
     if ($alreadyAssigned) {
         return back()->with('error', 'This employee is already assigned to this site.');
     }
-    if ($alreadyAssignedVehicle) {
-        return back()->with('error', 'This Vehicle is already assigned to other employee.');
+
+    if (!empty($request->vehicle_id)) {
+        $alreadyAssignedVehicle = DB::table('construction_employee_vehicle')
+            ->where('vehicle_id', $request->vehicle_id)
+            ->where('isDelete', 0)
+            ->exists();
+
+        if ($alreadyAssignedVehicle) {
+            return back()->with('error', 'This vehicle is already assigned to another employee.');
+        }
     }
 
     DB::table('construction_employee_vehicle')->insert([
         'construction_id' => $request->site_id,
-        'employee_id' => $request->employee_id,
-        'vehicle_id' => $request->assign_vehicle ? $request->vehicle_id : null,
-        'iStatus' => 1,
-        'isDelete' => 0,
-        'created_at' => now(),
+        'employee_id'     => $request->employee_id,
+        'vehicle_id'      => $request->filled('vehicle_id') ? $request->vehicle_id : null,
+        'iStatus'         => 1,
+        'isDelete'        => 0,
     ]);
 
-    return back()->with('success', 'Assignment saved successfully.');
+    return back()->with('success', 'Assign Vehicle successfully.');
 }
+ public function changeStatus(Request $request)
+    {
+        $request->validate([
+            'site_id'         => 'required|exists:construction_site_master,site_id',
+            'site_status_id'  => 'required|exists:site_status,site_status_id',
+        ]);
 
+        DB::beginTransaction();
+
+        try {
+            $site = DB::table('construction_site_master')
+                ->where('site_id', $request->site_id)
+                ->first();
+
+            if (!$site) {
+                return redirect()->back()->with('error', 'Site not found.');
+            }
+
+            // Optional: prevent duplicate history if status is same
+            if ((int) $site->site_status_id === (int) $request->site_status_id) {
+                return redirect()->back()->with('error', 'Selected status is already active for this site.');
+            }
+
+            // Update site current status
+            DB::table('construction_site_master')
+                ->where('site_id', $request->site_id)
+                ->update([
+                    'site_status_id' => $request->site_status_id,
+                    'updated_at'     => now(),
+                ]);
+
+            // Insert history
+            DB::table('site_status_history')->insert([
+                'site_id'         => $request->site_id,
+                'site_status_id'  => $request->site_status_id,
+                'date_time'       => now(),
+                'employee_id'     => Auth::user()->employee_id ?? Auth::user()->id,
+                'role_id'         => Auth::user()->role_id ?? null,
+            ]);
+
+            DB::commit();
+
+            return redirect()->back()->with('success', 'Site status changed successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()->back()->with('error', 'Something went wrong: ' . $e->getMessage());
+        }
+    }
 
 
     public function deleteAssignment($id)

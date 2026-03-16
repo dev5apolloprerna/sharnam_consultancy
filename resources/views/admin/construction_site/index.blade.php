@@ -114,11 +114,23 @@
                         <td>{{ $site->site_address }}</td>
                         <td>{{ $site->site_pincode }}</td>
                         <td>{{ $site->site_radious_distance }}</td>
-                        <td>{{ $site->siteStatus->site_status }}</td>
+                        <td>{{ $site->siteStatus->site_status }}
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-primary openStatusModal"
+                                    data-site_id="{{ $site->site_id }}"
+                                    data-site_name="{{ $site->site_name }}"
+                                    data-site_status_id="{{ $site->site_status_id }}"
+                                >
+                                    Change Status
+                                </button>
+                            
+                        </td>
 
                         <td>
                           {{ $site->iStatus ? 'Active' : 'Inactive' }}
                         </td>
+
 
                         <td>
                           <a href="{{ route('admin.construction-site.edit', $site->site_id) }}"
@@ -133,12 +145,17 @@
                             <i class="fas fa-trash"></i>
                           </a>
 
-                          <a href="{{ url('/admin/construction-site/' . $site->site_id . '/employee-vehicle') }}"
+                          <a href="{{ url('/admin/construction-site/' . $site->site_id . '/employee-accessories') }}"
                              class="text-success" title="Assign">
                             <i class="fas fa-users-cog"></i>
                           </a>
                           
                          <a href="javascript:void(0);" class="text-warning assignEmployeeBtn" data-id="{{ $site->site_id }}" data-name="{{ $site->site_name }}"><i class="fas fa-user-plus"></i></a>
+
+                         <a href="{{ url('/admin/construction-site/' . $site->site_id . '/employee-vehicle') }}"
+                             class="text-success" title="Assign">
+                            <i class="fas fa-car"></i>
+                          </a>
 
                         </td>
                       </tr>
@@ -221,6 +238,53 @@
         </form>
     </div>
 </div>
+
+
+<!--  site status -->
+<!-- Change Status Modal -->
+<div class="modal fade" id="changeStatusModal" tabindex="-1" aria-labelledby="changeStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="{{ route('admin.construction-site.change-status') }}" method="POST" id="changeStatusForm">
+            @csrf
+
+            <input type="hidden" name="site_id" id="modal_site_id">
+
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="changeStatusModalLabel">Change Site Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Site Name</label>
+                        <input type="text" class="form-control" id="modal_site_name" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="modal_site_status_id" class="form-label">Select Status</label>
+                        <select name="site_status_id" id="modal_site_status_id" class="form-control" required>
+                            <option value="">Select Status</option>
+                            @foreach($siteStatuses as $status)
+                                <option value="{{ $status->site_status_id }}">
+                                    {{ $status->site_status }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Update Status</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!--  site status -->
+
 </div>
 </div>
 </div>
@@ -408,5 +472,25 @@
         });
     });
 
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modalElement = document.getElementById('changeStatusModal');
+        const changeStatusModal = new bootstrap.Modal(modalElement);
+
+        document.querySelectorAll('.openStatusModal').forEach(button => {
+            button.addEventListener('click', function () {
+                const siteId = this.getAttribute('data-site_id');
+                const siteName = this.getAttribute('data-site_name');
+                const siteStatusId = this.getAttribute('data-site_status_id');
+
+                document.getElementById('modal_site_id').value = siteId;
+                document.getElementById('modal_site_name').value = siteName;
+                document.getElementById('modal_site_status_id').value = siteStatusId;
+
+                changeStatusModal.show();
+            });
+        });
+    });
 </script>
 @endsection

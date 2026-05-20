@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\EmployeeLedgerApiController;
 use App\Http\Controllers\Api\EmployeeLeaveManagerController;
 use App\Http\Controllers\Api\EmployeeSalaryApiController;
 
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -24,6 +25,7 @@ use App\Http\Controllers\Api\EmployeeSalaryApiController;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+
 Route::post('employee/login', [EmployeeAuthController::class, 'login']);
     Route::post('employee/forgot-password', [EmployeePasswordController::class, 'forgot']);
 
@@ -59,7 +61,6 @@ Route::prefix('employee')
         Route::post('/employee-ledger/update', [EmployeeLedgerApiController::class, 'updateLedger']);
         Route::post('/employee-ledger/delete', [EmployeeLedgerApiController::class, 'deleteLedger']);
         Route::post('salary/list', [EmployeeSalaryApiController::class, 'salaryListing']);
-
     });
 
 
@@ -79,7 +80,8 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/manager/employee-leave-action', [EmployeeLeaveManagerController::class, 'managerEmployeeLeaveAction']);
 });
 
-
-
-// Route::post('employee/salary/list', [EmployeeSalaryApiController::class, 'salaryList']);
 Route::middleware(['auth:api'])->get('employee/salary-slip/pdf', [EmployeeSalaryApiController::class, 'salarySlipPdf'])->name('api.employee.salary-slip.pdf');
+
+/*Route::post('employee/salary/list', [EmployeeSalaryApiController::class, 'salaryList']);
+Route::post('employee/salary-slip', [EmployeeSalaryApiController::class, 'salaryPdfDownload']);
+*/

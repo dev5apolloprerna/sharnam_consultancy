@@ -17,7 +17,6 @@ class EmployeeSalaryPayment extends Model
         'leave_deduct_amount',
         'paid_amount',
         'paid_date',
-        'salary_slip_path',
     ];
 
     protected $casts = [

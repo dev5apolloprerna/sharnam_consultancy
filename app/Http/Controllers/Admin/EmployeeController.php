@@ -136,7 +136,6 @@ class EmployeeController extends Controller
 
     public function empchangePassword(Request $request)
     {
-        dd($request);
         $request->validate([
             'employee_id' => 'required|exists:employee_master,employee_id',
             'new_password' => 'required|min:6|same:confirm_password',

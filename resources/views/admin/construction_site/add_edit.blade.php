@@ -35,14 +35,16 @@
                         @if($errors->has('site_pincode'))<span class="text-danger">{{ $errors->first('site_pincode') }}</span>@endif
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Latitude <span style="color:red;">*</span></label>
+                        <label class="form-label">Site Latitude <span style="color:red;">*</span></label>
                         <input type="text" name="latitude" class="form-control" value="{{ old('latitude', $site->{'latitude'} ?? '') }}">
                         @if($errors->has('latitude'))<span class="text-danger">{{ $errors->first('latitude') }}</span>@endif
-                    </div><div class="col-md-6 mb-3">
-                        <label class="form-label">Longitude <span style="color:red;">*</span></label>
-                        <input type="text" name="longitude  " class="form-control" value="{{ old('longitude   ', $site->{'longitude  '} ?? '') }}">
-                        @if($errors->has('longitude '))<span class="text-danger">{{ $errors->first('longitude    ') }}</span>@endif
-                    </div><div class="col-md-6 mb-3">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Site Longitude <span style="color:red;">*</span></label>
+                        <input type="text" name="longitude" class="form-control" value="{{ old('longitude', $site->{'longitude'} ?? '') }}">
+                        @if($errors->has('longitude'))<span class="text-danger">{{ $errors->first('longitude') }}</span>@endif
+                    </div>
+                    <div class="col-md-6 mb-3">
                         <label class="form-label">Radius Distance <span style="color:red;">*</span></label>
                         <input type="text" name="site_radious_distance" class="form-control" value="{{ old('site_radious_distance', $site->{'site_radious_distance'} ?? '') }}">
                         @if($errors->has('site_radious_distance'))<span class="text-danger">{{ $errors->first('site_radious_distance') }}</span>@endif

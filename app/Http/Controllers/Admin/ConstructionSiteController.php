@@ -13,6 +13,7 @@ use App\Models\Accessories;
 use App\Models\ProjectAccessories;
 use Illuminate\Support\Facades\Auth;
 
+
 use Illuminate\Support\Facades\DB;
 
 class ConstructionSiteController extends Controller
@@ -59,8 +60,8 @@ class ConstructionSiteController extends Controller
             'site_pincode' => 'required|numeric',
             'site_radious_distance' => 'required|max:100',
             'site_status_id' => 'required|integer',
-            'latitude' => 'required',
             'longitude' => 'required',
+            'latitude' => 'required',
         ]);
 
         ConstructionSiteMaster::create($request->all());
@@ -218,44 +219,56 @@ public function assignEmployees(Request $request)
     }
 
    public function saveAssignment(Request $request)
-{
-    $request->validate([
-        'site_id'     => 'required|exists:construction_site_master,site_id',
-        'employee_id' => 'required|exists:employee_master,employee_id',
-        'vehicle_id'  => 'nullable|exists:vehicle_master,vehicle_id',
-    ]);
-
-    $alreadyAssigned = DB::table('construction_employee_vehicle')
-        ->where('construction_id', $request->site_id)
-        ->where('employee_id', $request->employee_id)
-        ->where('isDelete', 0)
-        ->exists();
-
-    if ($alreadyAssigned) {
-        return back()->with('error', 'This employee is already assigned to this site.');
-    }
-
-    if (!empty($request->vehicle_id)) {
-        $alreadyAssignedVehicle = DB::table('construction_employee_vehicle')
-            ->where('vehicle_id', $request->vehicle_id)
+    {
+        $request->validate([
+            'site_id'     => 'required|exists:construction_site_master,site_id',
+            'employee_id' => 'required|exists:employee_master,employee_id',
+            'vehicle_id'  => 'nullable|exists:vehicle_master,vehicle_id',
+        ]);
+    
+        $alreadyAssigned = DB::table('construction_employee_vehicle')
+            ->where('construction_id', $request->site_id)
+            ->where('employee_id', $request->employee_id)
             ->where('isDelete', 0)
             ->exists();
-
-        if ($alreadyAssignedVehicle) {
-            return back()->with('error', 'This vehicle is already assigned to another employee.');
+    
+        if ($alreadyAssigned) {
+            return back()->with('error', 'This employee is already assigned to this site.');
         }
+    
+        if (!empty($request->vehicle_id)) {
+            $alreadyAssignedVehicle = DB::table('construction_employee_vehicle')
+                ->where('vehicle_id', $request->vehicle_id)
+                ->where('isDelete', 0)
+                ->exists();
+    
+            if ($alreadyAssignedVehicle) {
+                return back()->with('error', 'This vehicle is already assigned to another employee.');
+            }
+        }
+    
+        DB::table('construction_employee_vehicle')->insert([
+            'construction_id' => $request->site_id,
+            'employee_id'     => $request->employee_id,
+            'vehicle_id'      => $request->filled('vehicle_id') ? $request->vehicle_id : null,
+            'iStatus'         => 1,
+            'isDelete'        => 0,
+        ]);
+    
+        return back()->with('success', 'Assign Vehicle successfully.');
     }
 
-    DB::table('construction_employee_vehicle')->insert([
-        'construction_id' => $request->site_id,
-        'employee_id'     => $request->employee_id,
-        'vehicle_id'      => $request->filled('vehicle_id') ? $request->vehicle_id : null,
-        'iStatus'         => 1,
-        'isDelete'        => 0,
-    ]);
 
-    return back()->with('success', 'Assign Vehicle successfully.');
-}
+
+    public function deleteAssignment($id)
+    {
+        DB::table('construction_employee_vehicle')
+            ->where('id', $id)
+            ->update(['isDelete' => 1]);
+
+        return back()->with('success', 'Assignment removed successfully.');
+    }
+
  public function changeStatus(Request $request)
     {
         $request->validate([
@@ -305,16 +318,5 @@ public function assignEmployees(Request $request)
             return redirect()->back()->with('error', 'Something went wrong: ' . $e->getMessage());
         }
     }
-
-
-    public function deleteAssignment($id)
-    {
-        DB::table('construction_employee_vehicle')
-            ->where('id', $id)
-            ->update(['isDelete' => 1]);
-
-        return back()->with('success', 'Assignment removed successfully.');
-    }
-
 
 }

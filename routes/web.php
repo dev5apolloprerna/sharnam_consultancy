@@ -12,8 +12,9 @@ use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\VehicleController;
 use App\Http\Controllers\Admin\EmployeeCreditController;
 use App\Http\Controllers\Admin\EmployeeLeaveController;
-use App\Http\Controllers\Admin\EmployeeLocationHistoryController;
 use App\Http\Controllers\Admin\SalaryProcessController;
+use App\Http\Controllers\Admin\EmployeeLocationHistoryController;
+
 
 Route::fallback(function () {
      return view('errors.404');
@@ -67,14 +68,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('construction-site/{site_id}/employees', [ConstructionSiteController::class, 'employees']);
     Route::post('construction-site/assign-employees', [ConstructionSiteController::class, 'assignEmployees']);
 
-
 Route::get('construction-site/{site}/employee-accessories', [ConstructionSiteController::class, 'employeeAccessoriesPage']);
-
 Route::get('construction-site/{site}/employee-vehicle', [ConstructionSiteController::class, 'employeeVehiclePage']);
 Route::post('construction-site/employee-vehicle/save', [ConstructionSiteController::class, 'saveAssignment']);
 Route::delete('construction-site/employee-vehicle/delete/{id}', [ConstructionSiteController::class, 'deleteAssignment'])->name('construction-site.assignment.delete');
-
 Route::post('construction-site/change-status', [ConstructionSiteController::class, 'changeStatus'])->name('construction-site.change-status');
+
+
 });
 
 
@@ -89,6 +89,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('employee/{id}/vehicle', [EmployeeController::class, 'getVehicle']);
     Route::post('employee/vehicle/save', [EmployeeController::class, 'saveVehicle']);
     Route::post('employee/resign', [EmployeeController::class, 'resign'])->name('employee.resign');
+
+
 });
 
 
@@ -142,11 +144,13 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::post('/employee-leave/status', [EmployeeLeaveController::class, 'updateStatus'])->name('admin.employee_leave.status');
 });
 
+
 Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
     Route::get('salary-process', [SalaryProcessController::class, 'index'])->name('salary-process.index');
     Route::post('salary-process', [SalaryProcessController::class, 'store'])->name('salary-process.store');
     Route::get('salary-process/{salaryId}/slip', [SalaryProcessController::class, 'downloadSlip'])->name('salary-process.slip');
 });
+
 
 
 Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {

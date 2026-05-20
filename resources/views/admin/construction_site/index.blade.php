@@ -131,7 +131,6 @@
                           {{ $site->iStatus ? 'Active' : 'Inactive' }}
                         </td>
 
-
                         <td>
                           <a href="{{ route('admin.construction-site.edit', $site->site_id) }}"
                              class="text-primary me-2" title="Edit">
@@ -238,8 +237,6 @@
         </form>
     </div>
 </div>
-
-
 <!--  site status -->
 <!-- Change Status Modal -->
 <div class="modal fade" id="changeStatusModal" tabindex="-1" aria-labelledby="changeStatusModalLabel" aria-hidden="true">

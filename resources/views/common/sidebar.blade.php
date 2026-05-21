@@ -46,10 +46,16 @@
                           </a>
                         </li>
                         <li class="nav-item">
+                            <a href="{{ route('admin.holiday-master.index') }}" class="nav-link {{ request()->is('admin/holiday-master*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-calendar-day"></i>Holiday Master
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a href="{{ route('admin.employee-location-history.index') }}" class="nav-link {{ request()->is('admin/employee-location-history*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-map-marker-alt"></i>Employee Location History
                             </a>
                         </li>
+
                         <li class="nav-item">
                             <a href="{{ route('admin.salary-process.index') }}" class="nav-link {{ request()->is('admin/salary-process*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-money-bill-wave"></i>Salary Process

@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\EmployeeLocationHistory;
 use App\Models\EmployeeMaster;
-use Illuminate\Support\Facades\Notification;
-use App\Notifications\EmployeeLocationAlert; // We'll create this
+/*use Illuminate\Support\Facades\Notification;
+use App\Notifications\EmployeeLocationAlert;*/ // We'll create this
 
 class EmployeeLocationController extends Controller
 {
@@ -21,6 +21,19 @@ class EmployeeLocationController extends Controller
             'comments' => 'nullable|string',
         ]);
 
+         $latestLocation = EmployeeLocationHistory::where('employee_id', $request->employee_id)
+            ->where('isDelete', 0)
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($latestLocation
+            && (string) $latestLocation->latitude === (string) $request->latitude
+            && (string) $latestLocation->longitude === (string) $request->longitude
+            && Carbon::parse($latestLocation->created_at)->gt(now()->subMinutes(1))) {
+            return response()->json(['success' => true, 'message' => 'Duplicate location ignored.']);
+        }
+
+        
         EmployeeLocationHistory::create([
             'employee_id' => $request->employee_id,
             'latitude' => $request->latitude,

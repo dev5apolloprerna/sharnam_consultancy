@@ -14,7 +14,7 @@ use App\Http\Controllers\Admin\EmployeeCreditController;
 use App\Http\Controllers\Admin\EmployeeLeaveController;
 use App\Http\Controllers\Admin\SalaryProcessController;
 use App\Http\Controllers\Admin\EmployeeLocationHistoryController;
-
+use App\Http\Controllers\Admin\HolidayMasterController;
 
 Route::fallback(function () {
      return view('errors.404');
@@ -152,6 +152,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
 });
 
 
+Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
+    Route::get('holiday-master', [HolidayMasterController::class, 'index'])->name('holiday-master.index');
+    Route::post('holiday-master', [HolidayMasterController::class, 'store'])->name('holiday-master.store');
+    Route::put('holiday-master/{holidayId}', [HolidayMasterController::class, 'update'])->name('holiday-master.update');
+    Route::delete('holiday-master/{holidayId}', [HolidayMasterController::class, 'destroy'])->name('holiday-master.delete');
+});
 
 Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
     Route::get('employee-location-history', [EmployeeLocationHistoryController::class, 'index'])

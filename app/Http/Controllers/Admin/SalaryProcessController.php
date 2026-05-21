@@ -146,7 +146,13 @@ use Carbon\Carbon;
              'salaryYear' => $salary->salary_year,
          ])->setPaper('a4', 'portrait');
  
-         return $pdf->download('salary-slip-' . $salary->employee_id . '-' . $salary->salary_month . '-' . $salary->salary_year . '.pdf');
+         /*return $pdf->download('salary-slip-' . $salary->employee_id . '-' . $salary->salary_month . '-' . $salary->salary_year . '.pdf');*/
+
+         $month = str_pad((string) $salary->salary_month, 2, '0', STR_PAD_LEFT);
+         $employeeName = preg_replace('/\s+/', ' ', trim((string) optional($salary->employee)->employee_name));
+         $fileName = $salary->salary_year . ' ' . $month . ' ' . $employeeName . '.pdf';
+
+         return $pdf->download($fileName);
      }
  
     private function leaveCountsByEmployee(int $month, int $year, ?array $employeeIds = null): array

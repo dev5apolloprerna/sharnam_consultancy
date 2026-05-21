@@ -2272,7 +2272,7 @@ a {
 
 [data-layout=horizontal] .navbar-menu .navbar-nav .nav-link {
     color: var(--vz-topnav-item-color);
-    padding: .75rem 1.5rem
+    padding: .75rem 0.5rem
 }
 
 [data-layout=horizontal] .navbar-menu .navbar-nav .nav-link i {

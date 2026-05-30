@@ -7,13 +7,14 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 use Illuminate\Http\Request;
 use App\Models\EmployeeMaster;
 use App\Models\EmployeeAttendance;
 use App\Models\HolidayMaster;
-
+use App\Models\VehicleMaster;
 class EmployeeAuthController extends Controller
 {
    public function login(Request $request)
@@ -85,14 +86,113 @@ class EmployeeAuthController extends Controller
             'isWorkStart' => $isWorkStart,
             'isWorkEnd' => $isWorkEnd,
             'customer' => $employee,
-            'holidays' => $holidays,
-            'holiday_count' => count($holidays),
+            /*'holidays' => $holidays,
+            'holiday_count' => count($holidays),*/
              'profile_image_url' => !empty($employee->profile_image)
                 ? asset('/profile/' . $employee->profile_image)
                 : null
         ]);
     }
-        private function upcomingHolidays(): array
+            public function assignedVehicleList(Request $request)
+    {
+        $employee = auth()->guard('api')->user();
+
+        if (!$employee) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Unauthorised'
+            ], 401);
+        }
+
+        $assignedVehicles = $this->assignedVehicles($employee->employee_id);
+        $siteAssignedVehicles = $this->siteAssignedVehicles($employee->employee_id);
+        $assignedVehicle = $assignedVehicles[0] ?? $this->firstSiteAssignedVehicle($siteAssignedVehicles);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Assigned vehicle list fetched successfully',
+            'data' => [
+                'employee_id' => $employee->employee_id,
+                'assigned_vehicle' => $assignedVehicle,
+                'assigned_vehicles' => $assignedVehicles,
+                'site_assigned_vehicles' => $siteAssignedVehicles,
+            ],
+        ]);
+    }
+
+    private function assignedVehicles(int $employeeId): array
+    {
+        return VehicleMaster::where('employee_id', $employeeId)
+            ->where('isDelete', 0)
+            ->where('iStatus', 1)
+            ->orderBy('vehicle_id', 'desc')
+            ->get(['vehicle_id', 'vehicle_name', 'vehicle_no', 'employee_id'])
+            ->map(function ($vehicle) {
+                return [
+                    'vehicle_id' => $vehicle->vehicle_id,
+                    'vehicle_name' => $vehicle->vehicle_name,
+                    'vehicle_no' => $vehicle->vehicle_no,
+                    'employee_id' => $vehicle->employee_id,
+                ];
+            })
+            ->values()
+            ->toArray();
+    }
+
+    private function siteAssignedVehicles(int $employeeId): array
+    {
+        return DB::table('construction_employee_vehicle as sev')
+            ->leftJoin('vehicle_master as v', 'v.vehicle_id', '=', 'sev.vehicle_id')
+            ->leftJoin('construction_site_master as s', 's.site_id', '=', 'sev.construction_id')
+            ->where('sev.employee_id', $employeeId)
+            ->where('sev.isDelete', 0)
+            ->where('sev.iStatus', 1)
+            ->where(function ($query) {
+                $query->whereNull('sev.vehicle_id')
+                    ->orWhere(function ($vehicleQuery) {
+                        $vehicleQuery->where('v.isDelete', 0)
+                            ->where('v.iStatus', 1);
+                    });
+            })
+            ->orderByDesc('sev.id')
+            ->get([
+                'sev.id as assignment_id',
+                'sev.construction_id as site_id',
+                's.site_name',
+                'sev.employee_id',
+                'sev.vehicle_id',
+                'v.vehicle_name',
+                'v.vehicle_no',
+            ])
+            ->map(function ($assignment) {
+                return [
+                    'assignment_id' => $assignment->assignment_id,
+                    'site_id' => $assignment->site_id,
+                    'site_name' => $assignment->site_name,
+                    'employee_id' => $assignment->employee_id,
+                    'vehicle' => $assignment->vehicle_id ? [
+                        'vehicle_id' => $assignment->vehicle_id,
+                        'vehicle_name' => $assignment->vehicle_name,
+                        'vehicle_no' => $assignment->vehicle_no,
+                    ] : null,
+                ];
+            })
+            ->values()
+            ->toArray();
+    }
+
+    private function firstSiteAssignedVehicle(array $siteAssignedVehicles): ?array
+    {
+        foreach ($siteAssignedVehicles as $assignment) {
+            if (!empty($assignment['vehicle'])) {
+                return $assignment['vehicle'];
+            }
+        }
+
+        return null;
+    }
+
+    private function upcomingHolidays(): array
     {
         return HolidayMaster::where('isDelete', 0)
             ->where('iStatus', 1)

@@ -23,7 +23,8 @@ use Carbon\Carbon;
              'salary_year' => 'nullable|integer|min:2000|max:2100',
          ]);
  
-         $employee = EmployeeMaster::select('employee_id', 'employee_name', 'basic_salary')
+            $employee = EmployeeMaster::with('siteAssignments.site')
+             ->select('employee_id', 'employee_name', 'employee_email', 'basic_salary', 'designation', 'joining_date')
              ->where('employee_id', $validated['employee_id'])
              ->first();
  
@@ -84,7 +85,8 @@ use Carbon\Carbon;
              'salary_year' => 'required|integer|min:2000|max:2100',
          ]);
  
-         $employee = EmployeeMaster::select('employee_id', 'employee_name', 'basic_salary')
+         $employee = EmployeeMaster::with('siteAssignments.site')
+             ->select('employee_id', 'employee_name', 'employee_email', 'basic_salary', 'designation', 'joining_date')
              ->where('employee_id', $validated['employee_id'])
              ->first();
  

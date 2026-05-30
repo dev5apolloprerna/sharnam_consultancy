@@ -60,6 +60,12 @@ class EmployeeMaster extends Authenticatable implements JWTSubject
     {
         return $this->belongsTo(VehicleMaster::class, 'vehicle_id');
     }
+    public function siteAssignments()
+    {
+        return $this->hasMany(SiteAssignEmployee::class, 'site_emp_id', 'employee_id')
+            ->where('iStatus', 1)
+            ->where('isDelete', 0);
+    }
     public function checkResignStatus()
     {
         if ($this->last_working_date && Carbon::today()->greaterThan($this->last_working_date)) {

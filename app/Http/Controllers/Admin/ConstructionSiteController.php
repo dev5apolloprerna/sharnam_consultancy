@@ -24,9 +24,12 @@ class ConstructionSiteController extends Controller
             ->where('isDelete', 0);
         $sites = $query->orderBy('site_id', 'desc')->paginate(10);
         $siteStatuses = SiteStatus::orderBy('site_status', 'asc')->get();
+        $siteNames = ConstructionSiteMaster::where('isDelete', 0)
+            ->orderBy('site_name', 'asc')
+            ->get(['site_id', 'site_name']);
 
         
-        return view('admin.construction_site.index', compact('sites','siteStatuses'));
+        return view('admin.construction_site.index', compact('sites','siteStatuses','siteNames'));
     }
 
     public function search(Request $request)
@@ -34,17 +37,20 @@ class ConstructionSiteController extends Controller
         $query = ConstructionSiteMaster::where('isDelete', 0);
 
         if ($request->site_name) {
-            $query->where('site_name', 'like', '%' . $request->site_name . '%');
+            $query->where('site_name', $request->site_name);
         }
 
         if ($request->site_status_id) {
             $query->where('site_status_id', $request->site_status_id);
         }
 
-        $sites = $query->paginate(10);
+        $sites = $query->orderBy('site_id', 'desc')->paginate(10);
         $siteStatuses = SiteStatus::orderBy('site_status', 'asc')->get();
-
-        return view('admin.construction_site.index', compact('sites','siteStatuses'));
+        $siteNames = ConstructionSiteMaster::where('isDelete', 0)
+            ->orderBy('site_name', 'asc')
+            ->get(['site_id', 'site_name']);
+            
+        return view('admin.construction_site.index', compact('sites','siteStatuses','siteNames'));
     }
 
     public function create()

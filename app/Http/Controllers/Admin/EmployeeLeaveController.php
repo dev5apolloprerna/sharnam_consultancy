@@ -12,7 +12,7 @@ class EmployeeLeaveController extends Controller
     {
         $status = $request->get('status', 'pending'); // pending default
 
-        $query = EmployeeLeaveMaster::query()
+        $query = EmployeeLeaveMaster::with('employee')
             ->where('isDelete', 0)
             ->where('iStatus', 1);
 

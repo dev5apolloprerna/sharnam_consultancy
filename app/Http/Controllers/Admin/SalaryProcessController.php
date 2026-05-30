@@ -138,7 +138,7 @@ use Carbon\Carbon;
  
    public function downloadSlip($salaryId)
      {
-         $salary = EmployeeSalaryPayment::with('employee')->findOrFail($salaryId);
+         $salary = EmployeeSalaryPayment::with('employee.siteAssignments.site')->findOrFail($salaryId);
         $leaveCounts = $this->leaveCountsByEmployee((int) $salary->salary_month, (int) $salary->salary_year, [(int) $salary->employee_id]);
  
          $salary->full_day_leave = $leaveCounts[$salary->employee_id]['full_day'] ?? 0;

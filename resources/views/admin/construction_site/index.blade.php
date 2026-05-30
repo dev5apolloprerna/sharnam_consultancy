@@ -40,7 +40,14 @@
                         <div class="row align-items-end">
                             <div class="col-md-5">
                                 <label for="site_name" class="form-label">Site Name</label>
-                                <input type="text" name="site_name" id="site_name" class="form-control" value="{{ request('site_name') }}">
+                                <select name="site_name" id="site_name" class="form-control">
+                                    <option value="">-- Select Site Name --</option>
+                                    @foreach($siteNames as $siteName)
+                                        <option value="{{ $siteName->site_name }}" {{ request('site_name') == $siteName->site_name ? 'selected' : '' }}>
+                                            {{ $siteName->site_name }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="col-md-4">
                                 <label for="site_status_id" class="form-label">Site Status</label>

@@ -26,5 +26,10 @@ class SiteAssignEmployee extends Model
     {
         return $this->belongsTo(EmployeeMaster::class, 'site_emp_id','employee_id')->where('isDelete', 0);
     }
+     public function site()
+    {
+        return $this->belongsTo(ConstructionSiteMaster::class, 'site_id', 'site_id')
+            ->where('isDelete', 0);
+    }
 
 }

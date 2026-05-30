@@ -22,6 +22,21 @@
     </style>
 </head>
 <body>
+    @php
+    $assignedSites = collect();
+
+    if ($employee && method_exists($employee, 'relationLoaded') && $employee->relationLoaded('siteAssignments')) {
+        $assignedSites = $employee->siteAssignments
+            ->pluck('site.site_name')
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    $assignedSite = $assignedSites->isNotEmpty()
+        ? $assignedSites->implode(', ')
+        : ($employee->assigned_site ?? ($employee->site_name ?? '-'));
+@endphp
     <div class="slip">
         <div class="header">
             <h1>Salary Slip</h1>
@@ -38,6 +53,9 @@
                 <tr>
                     <td><strong>Email:</strong> {{ $employee->employee_email }}</td>
                     <td><strong>Designation:</strong> {{ $employee->designation }}</td>
+                </tr>
+                 <tr>
+                    <td colspan="2"><strong>Assigned Site:</strong> {{ $assignedSite }}</td>
                 </tr>
             </table>
         </div>

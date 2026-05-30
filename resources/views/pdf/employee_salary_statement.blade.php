@@ -95,7 +95,20 @@
     $employeeId = $employee->employee_id ?? '-';
     $department = $employee->department ?? '-';
     $designation = $employee->designation ?? '-';
-    $location = $employee->location ?? '-';
+        $assignedSites = collect();
+
+    if ($employee && method_exists($employee, 'relationLoaded') && $employee->relationLoaded('siteAssignments')) {
+        $assignedSites = $employee->siteAssignments
+            ->pluck('site.site_name')
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    $assignedSite = $assignedSites->isNotEmpty()
+        ? $assignedSites->implode(', ')
+        : ($employee->assigned_site ?? ($employee->site_name ?? '-'));
+        
     $accountOrUpi = $employee->account_no ?? ($employee->upi_id ?? '-');
 
     $joiningDate = '-';
@@ -157,8 +170,8 @@
     <tr>
         <td class="label">Date of Joining:</td>
         <td class="value">{{ $joiningDate }}</td>
-        <td class="label">Location:</td>
-        <td class="value">{{ $location }}</td>
+        <td class="label">Assigned Site:</td>
+        <td class="value">{{ $assignedSite }}</td>
     </tr>
     <tr>
         <td class="label">AC No/UPI ID:</td>

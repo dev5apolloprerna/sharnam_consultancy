@@ -7,10 +7,12 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\File;
+use Carbon\Carbon;
 
 use Illuminate\Http\Request;
 use App\Models\EmployeeMaster;
 use App\Models\EmployeeAttendance;
+use App\Models\HolidayMaster;
 
 class EmployeeAuthController extends Controller
 {
@@ -74,6 +76,7 @@ class EmployeeAuthController extends Controller
 
 
         $token = JWTAuth::fromUser($employee);
+        $holidays = $this->upcomingHolidays();
 
         return response()->json([
             'status' => true,
@@ -82,10 +85,34 @@ class EmployeeAuthController extends Controller
             'isWorkStart' => $isWorkStart,
             'isWorkEnd' => $isWorkEnd,
             'customer' => $employee,
+            'holidays' => $holidays,
+            'holiday_count' => count($holidays),
              'profile_image_url' => !empty($employee->profile_image)
                 ? asset('/profile/' . $employee->profile_image)
                 : null
         ]);
+    }
+        private function upcomingHolidays(): array
+    {
+        return HolidayMaster::where('isDelete', 0)
+            ->where('iStatus', 1)
+            ->whereDate('holiday_date', '>=', now()->toDateString())
+            ->orderBy('holiday_date', 'asc')
+            ->limit(10)
+            ->get()
+            ->map(function ($holiday) {
+                $holidayDate = Carbon::parse($holiday->holiday_date);
+
+                return [
+                    'holiday_id' => $holiday->holiday_id,
+                    'holiday_name' => $holiday->holiday_name,
+                    'holiday_date' => $holidayDate->toDateString(),
+                    'holiday_day' => $holidayDate->format('l'),
+                    'description' => $holiday->description,
+                ];
+            })
+            ->values()
+            ->toArray();
     }
     public function profile(Request $request)
     {

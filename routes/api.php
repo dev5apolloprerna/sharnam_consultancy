@@ -35,6 +35,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('employee/dashboard', [DashboardController::class, 'dashboard']);
     Route::match(['get', 'post'], 'employee/holidays', [HolidayController::class, 'index']);
     Route::match(['get', 'post'], 'manager/holidays', [HolidayController::class, 'index']);
+    Route::post('employee/assign-vehicle-list', [EmployeeAuthController::class, 'assignedVehicleList']);
 });
 
 Route::post('employee/attendance/start', [EmployeeAttendanceController::class, 'startDay']);

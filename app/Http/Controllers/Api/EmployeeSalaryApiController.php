@@ -5,7 +5,8 @@
  use App\Http\Controllers\Controller;
 use App\Models\EmployeeAttendance;
  use App\Models\EmployeeMaster;
- use App\Models\EmployeeSalaryPayment;
+use App\Models\EmployeeSalaryPayment;
+use App\Models\HolidayMaster;
  use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
  use Illuminate\Http\Request;
@@ -137,9 +138,8 @@ use Carbon\Carbon;
  
      private function leaveCounts(int $employeeId, int $month, int $year): array
      {
-        $startDate = Carbon::create($year, $month, 1)->startOfDay();
-        $endDate = $startDate->copy()->endOfMonth();
-        $daysInMonth = (int) $endDate->day;
+        [$startDate, $endDate] = $this->salaryPeriodBounds($month, $year);
+        $holidayDates = $this->holidayDateMap($startDate, $endDate);
 
         $records = EmployeeAttendance::select('status', 'comments', 'start_date_time')
              ->where('employee_id', $employeeId)
@@ -163,9 +163,12 @@ use Carbon\Carbon;
          $fullDay = 0;
          $halfDay = 0;
  
-        for ($day = 1; $day <= $daysInMonth; $day++) {
-            $date = Carbon::create($year, $month, $day)->toDateString();
-            $unit = $dailyUnits[$date] ?? 1.0; // if attendance missing => full leave
+        for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
+            $dateString = $date->toDateString();
+            if (isset($holidayDates[$dateString])) {
+                continue;
+            }
+            $unit = $dailyUnits[$dateString] ?? 1.0; // if attendance missing => full leave
  
             if ($unit >= 1) {
                 $fullDay++;
@@ -199,5 +202,22 @@ use Carbon\Carbon;
         }
 
         return 1.0;
+    }
+    private function salaryPeriodBounds(int $month, int $year): array
+    {
+        $selectedDate = Carbon::create($year, $month, 1);
+        $startDate = $selectedDate->copy()->subMonthsNoOverflow(2)->day(26)->startOfDay();
+        $endDate = $selectedDate->copy()->subMonthNoOverflow()->day(25)->endOfDay();
+        return [$startDate, $endDate];
+    }
+
+    private function holidayDateMap(Carbon $startDate, Carbon $endDate): array
+    {
+        return HolidayMaster::where('isDelete', 0)
+            ->whereBetween('holiday_date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->pluck('holiday_date')
+            ->map(fn ($date) => Carbon::parse($date)->toDateString())
+            ->flip()
+            ->all();
     }
 }

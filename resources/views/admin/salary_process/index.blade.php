@@ -41,7 +41,7 @@
             <input type="hidden" name="salary_year" value="{{ $selectedYear }}">
 
             <div class="card mb-3">
-                <div class="card-header"><h5 class="mb-0">Pending Salary Employee List ({{ \Carbon\Carbon::createFromDate(null, $selectedMonth, 1)->format('F') }} {{ $selectedYear }})</h5></div>
+                <div class="card-header"><h5 class="mb-0">Pending Salary Employee List ({{ \Carbon\Carbon::createFromDate(null, $selectedMonth, 1)->format('F') }} {{ $selectedYear }})</h5><small class="text-muted">Salary period: {{ $salaryPeriodLabel }}</small></div>
                 <div class="card-body table-responsive">
                     <table class="table table-bordered align-middle" id="pendingSalaryTable">
                         <thead>
@@ -88,8 +88,7 @@
                                             data-bs-toggle="modal"
                                             data-bs-target="#leaveDetailModal"
                                             data-employee-name="{{ $employee->employee_name }}"
-                                            data-month="{{ \Carbon\Carbon::createFromDate(null, $selectedMonth, 1)->format('F') }}"
-                                            data-year="{{ $selectedYear }}"
+                                            data-period="{{ $salaryPeriodLabel }}"
                                             data-full-day="{{ $leaveSummary['full_day'] }}"
                                             data-half-day="{{ $leaveSummary['half_day'] }}"
                                             data-total-leave="{{ number_format($leaveSummary['total_units'], 1, '.', '') }}"
@@ -120,7 +119,7 @@
                     <div class="row align-items-end">
                         <div class="col-md-4">
                             <label class="form-label">Paid Date <span class="text-danger">*</span></label>
-                            <input type="date" name="paid_date" class="form-control" value="{{ old('paid_date', now()->toDateString()) }}" required>
+                        <input type="date" name="paid_date" class="form-control" value="{{ old('paid_date', $defaultPaidDate) }}" required>
                             @error('paid_date')<span class="text-danger">{{ $message }}</span>@enderror
                         </div>
                         <div class="col-md-4"><button type="submit" class="btn btn-success">Submit Selected Salaries</button></div>
@@ -210,7 +209,7 @@
     document.querySelectorAll('.leave-detail-btn').forEach(function (button) {
         button.addEventListener('click', function () {
             document.getElementById('modalEmployeeName').textContent = this.dataset.employeeName || '-';
-            document.getElementById('modalSalaryPeriod').textContent = (this.dataset.month || '-') + ' ' + (this.dataset.year || '-');
+            document.getElementById('modalSalaryPeriod').textContent = this.dataset.period || '-';
             document.getElementById('modalFullDayLeave').textContent = this.dataset.fullDay || '0';
             document.getElementById('modalHalfDayLeave').textContent = this.dataset.halfDay || '0';
             document.getElementById('modalTotalLeaveUnits').textContent = this.dataset.totalLeave || '0';

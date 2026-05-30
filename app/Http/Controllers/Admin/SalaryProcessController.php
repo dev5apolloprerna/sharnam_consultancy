@@ -6,6 +6,7 @@
 use App\Models\EmployeeAttendance;
  use App\Models\EmployeeMaster;
  use App\Models\EmployeeSalaryPayment;
+ use App\Models\HolidayMaster;
  use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
  use Illuminate\Http\Request;
@@ -26,7 +27,8 @@ use Carbon\Carbon;
              ->whereNotIn('employee_id', $paidEmployeeIds)
              ->orderBy('employee_name')
              ->get();
- 
+
+         [$periodStart, $periodEnd] = $this->salaryPeriodBounds($selectedMonth, $selectedYear);
         $pendingEmployeeIds = $pendingEmployees->pluck('employee_id')->map(fn ($id) => (int) $id)->all();
         $leaveCounts = $this->leaveCountsByEmployee($selectedMonth, $selectedYear, $pendingEmployeeIds);
 
@@ -47,7 +49,10 @@ use Carbon\Carbon;
              ->orderByDesc('id')
              ->get();
  
-        return view('admin.salary_process.index', compact('selectedMonth', 'selectedYear', 'pendingEmployees', 'paidSalaryRows', 'leaveCounts', 'leaveSummaries'));
+        /*return view('admin.salary_process.index', compact('selectedMonth', 'selectedYear', 'pendingEmployees', 'paidSalaryRows', 'leaveCounts', 'leaveSummaries'));*/
+        $defaultPaidDate = Carbon::create($selectedYear, $selectedMonth, 10)->toDateString();
+        $salaryPeriodLabel = $periodStart->format('d M Y') . ' - ' . $periodEnd->format('d M Y');
+        return view('admin.salary_process.index', compact('selectedMonth', 'selectedYear', 'pendingEmployees', 'paidSalaryRows', 'leaveCounts', 'leaveSummaries', 'defaultPaidDate', 'salaryPeriodLabel'));
      }
  
      public function store(Request $request)
@@ -157,9 +162,11 @@ use Carbon\Carbon;
  
     private function leaveCountsByEmployee(int $month, int $year, ?array $employeeIds = null): array
      {
-        $startDate = Carbon::create($year, $month, 1)->startOfDay();
+       /* $startDate = Carbon::create($year, $month, 1)->startOfDay();
         $endDate = $startDate->copy()->endOfMonth();
-        $daysInMonth = (int) $endDate->day;
+        $daysInMonth = (int) $endDate->day;*/
+        [$startDate, $endDate] = $this->salaryPeriodBounds($month, $year);
+        $holidayDates = $this->holidayDateMap($startDate, $endDate);
 
         $employeeIds = $employeeIds ?? EmployeeMaster::pluck('employee_id')->map(fn ($id) => (int) $id)->all();
         if (empty($employeeIds)) {
@@ -191,9 +198,13 @@ use Carbon\Carbon;
             $fullDay = 0;
             $halfDay = 0;
 
-            for ($day = 1; $day <= $daysInMonth; $day++) {
-                $date = Carbon::create($year, $month, $day)->toDateString();
-                $unit = $dailyUnits[$employeeId][$date] ?? 1.0; // if attendance missing => full leave
+            for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
+                $dateString = $date->toDateString();
+                if (isset($holidayDates[$dateString])) {
+                    continue;
+                }
+                $unit = $dailyUnits[$employeeId][$dateString] ?? 1.0; // if attendance missing => full leave
+
 
                 if ($unit >= 1) {
                     $fullDay++;
@@ -240,8 +251,13 @@ use Carbon\Carbon;
         $freeLeaveUnits = 2.0;
         $excessLeaveUnits = max(0, $totalLeaveUnits - $freeLeaveUnits);
 
-        $daysInMonth = max(1, cal_days_in_month(CAL_GREGORIAN, $month, $year));
-        $perDaySalary = $salary / $daysInMonth;
+        [$startDate, $endDate] = $this->salaryPeriodBounds($month, $year);
+        $periodDays = $startDate->diffInDays($endDate) + 1;
+        $holidayDays = count($this->holidayDateMap($startDate, $endDate));
+        $payableDays = max(1, $periodDays - $holidayDays);
+        $perDaySalary = $salary / $payableDays;
+        $leaveDeduction = round($perDaySalary * $excessLeaveUnits, 2);
+
         $leaveDeduction = round($perDaySalary * $excessLeaveUnits, 2);
 
         return [
@@ -266,5 +282,22 @@ use Carbon\Carbon;
         );
 
         return (float) $summary['leave_deduction'];
+    }
+    private function salaryPeriodBounds(int $month, int $year): array
+    {
+        $selectedDate = Carbon::create($year, $month, 1);
+        $startDate = $selectedDate->copy()->subMonthsNoOverflow(2)->day(26)->startOfDay();
+        $endDate = $selectedDate->copy()->subMonthNoOverflow()->day(25)->endOfDay();
+        return [$startDate, $endDate];
+    }
+
+    private function holidayDateMap(Carbon $startDate, Carbon $endDate): array
+    {
+        return HolidayMaster::where('isDelete', 0)
+            ->whereBetween('holiday_date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->pluck('holiday_date')
+            ->map(fn ($date) => Carbon::parse($date)->toDateString())
+            ->flip()
+            ->all();
     }
  }

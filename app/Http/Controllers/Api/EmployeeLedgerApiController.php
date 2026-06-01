@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class EmployeeLedgerApiController extends Controller
 {
@@ -56,6 +55,8 @@ class EmployeeLedgerApiController extends Controller
 
         // delta between balances => credit for this row if increased
         $delta = $currBalance - $prevBalance;
+
+        dd($delta);
 
         $creditAmount = 0.0;
         $debitAmount  = 0.0;

@@ -63,7 +63,7 @@
                                         'full_day' => 0,
                                         'half_day' => 0,
                                         'total_units' => 0,
-                                        'free_units' => 2,
+                                        'free_units' => 0,
                                         'chargeable_units' => 0,
                                         'per_day_salary' => 0,
                                         'leave_deduction' => 0,
@@ -167,7 +167,7 @@
                                 <tr><th>Full Day Leave</th><td id="modalFullDayLeave">-</td></tr>
                                 <tr><th>Half Day Leave</th><td id="modalHalfDayLeave">-</td></tr>
                                 <tr><th>Total Leave Units</th><td id="modalTotalLeaveUnits">-</td></tr>
-                                <tr><th>Allowed Free Leave</th><td id="modalFreeLeaveUnits">-</td></tr>
+                                <tr><th>Available Free Leave</th><td id="modalFreeLeaveUnits">-</td></tr>
                                 <tr><th>Chargeable Leave</th><td id="modalExtraLeaveUnits">-</td></tr>
                                 <tr><th>Per Day Salary</th><td id="modalPerDaySalary">-</td></tr>
                                 <tr><th>Leave Deduction</th><td id="modalLeaveDeduction">-</td></tr>
@@ -213,7 +213,7 @@
             document.getElementById('modalFullDayLeave').textContent = this.dataset.fullDay || '0';
             document.getElementById('modalHalfDayLeave').textContent = this.dataset.halfDay || '0';
             document.getElementById('modalTotalLeaveUnits').textContent = this.dataset.totalLeave || '0';
-            document.getElementById('modalFreeLeaveUnits').textContent = this.dataset.freeLeave || '2';
+            document.getElementById('modalFreeLeaveUnits').textContent = this.dataset.freeLeave || '0';
             document.getElementById('modalExtraLeaveUnits').textContent = this.dataset.extraLeave || '0';
             document.getElementById('modalPerDaySalary').textContent = (parseFloat(this.dataset.perDaySalary || 0)).toFixed(2);
             document.getElementById('modalLeaveDeduction').textContent = (parseFloat(this.dataset.leaveDeduction || 0)).toFixed(2);

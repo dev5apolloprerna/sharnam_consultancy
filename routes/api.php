@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\EmployeeLedgerApiController;
 use App\Http\Controllers\Api\EmployeeLeaveManagerController;
 use App\Http\Controllers\Api\EmployeeSalaryApiController;
 use App\Http\Controllers\Api\HolidayController;
+use App\Http\Controllers\Api\EmployeeLeaveLedgerApiController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -61,6 +62,8 @@ Route::prefix('employee')
         Route::post('/employee-ledger/update', [EmployeeLedgerApiController::class, 'updateLedger']);
         Route::post('/employee-ledger/delete', [EmployeeLedgerApiController::class, 'deleteLedger']);
         Route::post('salary/list', [EmployeeSalaryApiController::class, 'salaryListing']);
+        Route::post('leave-ledger/list', [EmployeeLeaveLedgerApiController::class, 'ledgerList']);
+        Route::post('leave-ledger/manual-adjustment', [EmployeeLeaveLedgerApiController::class, 'manualAdjustment']);
     });
 
 

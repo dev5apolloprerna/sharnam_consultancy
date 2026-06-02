@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\EmployeeLeaveMaster;
+use App\Services\EmployeeLeaveLedgerService;
 use Illuminate\Http\Request;
 
 class EmployeeLeaveController extends Controller
@@ -33,7 +34,7 @@ class EmployeeLeaveController extends Controller
         return view('admin.employee_leave.index', compact('leaves','status','counts'));
     }
 
-    public function updateStatus(Request $request)
+    public function updateStatus(Request $request, EmployeeLeaveLedgerService $ledgerService)
     {
         $request->validate([
             'emp_leave_id' => 'required|integer',
@@ -60,6 +61,10 @@ class EmployeeLeaveController extends Controller
 
         $leave->updated_at = now();
         $leave->save();
+
+         if ($leave->status === 'accepted') {
+            $ledgerService->debitApprovedLeave($leave, auth()->id());
+        }
 
         return back()->with('success', 'Leave status updated successfully.');
     }

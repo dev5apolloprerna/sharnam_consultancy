@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -66,6 +67,11 @@ class EmployeeMaster extends Authenticatable implements JWTSubject
             ->where('iStatus', 1)
             ->where('isDelete', 0);
     }
+    public function leaveLedgers()
+    {
+        return $this->hasMany(EmployeeLeaveLedger::class, 'employee_id', 'employee_id');
+    }
+
     public function checkResignStatus()
     {
         if ($this->last_working_date && Carbon::today()->greaterThan($this->last_working_date)) {

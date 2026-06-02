@@ -45,6 +45,13 @@
                             Employee Leave
                           </a>
                         </li>
+                         <li class="nav-item">
+                          <a href="{{ route('admin.employee-leave-ledger.index') }}"
+                             class="nav-link {{ request()->routeIs('admin.employee-leave-ledger.*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-balance-scale"></i>
+                            Leave Ledger
+                          </a>
+                        </li>
                         <li class="nav-item">
                             <a href="{{ route('admin.holiday-master.index') }}" class="nav-link {{ request()->is('admin/holiday-master*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-calendar-day"></i>Holiday Master

@@ -15,9 +15,7 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
-        $schedule->command('auto:birthdaywith')->now();
-        // $schedule->command('auto:birthdaywith')->everyMinute();
+     $schedule->command('employee-leaves:credit-monthly')->monthlyOn(1, '00:05');
     }
 
     /**

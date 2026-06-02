@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EmployeeLeaveMaster;
 use App\Models\EmployeeMaster;
 use Illuminate\Http\Request;
+use App\Services\EmployeeLeaveLedgerService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -123,7 +124,7 @@ class EmployeeLeaveManagerController extends Controller
     /**
      * Manager approve or reject employee leave
      */
-    public function managerEmployeeLeaveAction(Request $request)
+    public function managerEmployeeLeaveAction(Request $request, EmployeeLeaveLedgerService $ledgerService)
     {
         $validator = Validator::make($request->all(), [
             'emp_leave_id' => 'required|integer|exists:employee_leave_master,emp_leave_id',
@@ -205,6 +206,11 @@ class EmployeeLeaveManagerController extends Controller
         }
 
         $leave->save();
+
+        if ($leave->status === 'accepted') {
+            $ledgerService->debitApprovedLeave($leave, (int) $loginEmployeeId);
+        }
+
 
         return response()->json([
             'success' => true,

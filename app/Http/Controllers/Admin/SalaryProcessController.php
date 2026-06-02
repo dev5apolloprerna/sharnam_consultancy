@@ -3,15 +3,16 @@
  namespace App\Http\Controllers\Admin;
  
  use App\Http\Controllers\Controller;
-use App\Models\EmployeeAttendance;
+ use App\Models\EmployeeAttendance;
  use App\Models\EmployeeMaster;
  use App\Models\EmployeeSalaryPayment;
  use App\Models\HolidayMaster;
  use Barryvdh\DomPDF\Facade\Pdf;
-use Carbon\Carbon;
+ use Carbon\Carbon;
  use Illuminate\Http\Request;
  use Illuminate\Support\Facades\DB;
- 
+  use App\Services\EmployeeLeaveLedgerService;
+
  class SalaryProcessController extends Controller
  {
      public function index(Request $request)
@@ -30,6 +31,7 @@ use Carbon\Carbon;
 
          [$periodStart, $periodEnd] = $this->salaryPeriodBounds($selectedMonth, $selectedYear);
         $pendingEmployeeIds = $pendingEmployees->pluck('employee_id')->map(fn ($id) => (int) $id)->all();
+        app(EmployeeLeaveLedgerService::class)->syncApprovedLeaveDebitsForPeriod($pendingEmployeeIds, $periodStart, $periodEnd);
         $leaveCounts = $this->leaveCountsByEmployee($selectedMonth, $selectedYear, $pendingEmployeeIds);
 
         $leaveSummaries = [];
@@ -37,6 +39,7 @@ use Carbon\Carbon;
             $leaveSummaries[$employee->employee_id] = $this->leaveSummaryForEmployee(
                 (float) ($employee->basic_salary ?? 0),
                 $leaveCounts[$employee->employee_id] ?? ['full_day' => 0, 'half_day' => 0],
+                (int) $employee->employee_id,
                 $selectedMonth,
                 $selectedYear
             );
@@ -74,6 +77,8 @@ use Carbon\Carbon;
  
          $employeeIds = array_values(array_unique(array_map('intval', $validated['selected_employee_ids'])));
          $employees = EmployeeMaster::whereIn('employee_id', $employeeIds)->get()->keyBy('employee_id');
+       [$periodStart, $periodEnd] = $this->salaryPeriodBounds((int) $validated['salary_month'], (int) $validated['salary_year']);
+       app(EmployeeLeaveLedgerService::class)->syncApprovedLeaveDebitsForPeriod($employeeIds, $periodStart, $periodEnd);
        $leaveCounts = $this->leaveCountsByEmployee((int) $validated['salary_month'], (int) $validated['salary_year'], $employeeIds);
  
          DB::beginTransaction();
@@ -242,23 +247,25 @@ use Carbon\Carbon;
         return 1.0;
     }
 
-    private function leaveSummaryForEmployee(float $salary, array $employeeLeave, int $month, int $year): array
+    private function leaveSummaryForEmployee(float $salary, array $employeeLeave, int $employeeId, int $month, int $year): array
     {
         $fullDayLeave = (float) ($employeeLeave['full_day'] ?? 0);
         $halfDayLeave = (float) ($employeeLeave['half_day'] ?? 0);
         $halfDayUnits = $halfDayLeave * 0.5;
         $totalLeaveUnits = $fullDayLeave + $halfDayUnits;
-        $freeLeaveUnits = 2.0;
+/*        $freeLeaveUnits = 2.0;
         $excessLeaveUnits = max(0, $totalLeaveUnits - $freeLeaveUnits);
-
+*/
         [$startDate, $endDate] = $this->salaryPeriodBounds($month, $year);
+        $freeLeaveUnits = app(EmployeeLeaveLedgerService::class)->availableUnitsForPeriod($employeeId, $startDate, $endDate);
+        $excessLeaveUnits = max(0, $totalLeaveUnits - $freeLeaveUnits);
         $periodDays = $startDate->diffInDays($endDate) + 1;
         $holidayDays = count($this->holidayDateMap($startDate, $endDate));
         $payableDays = max(1, $periodDays - $holidayDays);
         $perDaySalary = $salary / $payableDays;
         $leaveDeduction = round($perDaySalary * $excessLeaveUnits, 2);
 
-        $leaveDeduction = round($perDaySalary * $excessLeaveUnits, 2);
+        //$leaveDeduction = round($perDaySalary * $excessLeaveUnits, 2);
 
         return [
             'full_day' => (int) $fullDayLeave,
@@ -277,6 +284,7 @@ use Carbon\Carbon;
         $summary = $this->leaveSummaryForEmployee(
             $salary,
             $counts[$employeeId] ?? ['full_day' => 0, 'half_day' => 0],
+            $employeeId,
             $month,
             $year
         );

@@ -38,6 +38,7 @@
                         <th>Date</th>
                         <th>Employee</th>
                         <th>Site</th>
+                        <th>Credit</th>
                         <th>Debit</th>
                         <th>Running Credit Balance</th>
                         <th>Comment</th>
@@ -46,13 +47,17 @@
                 </thead>
                 <tbody>
                     @forelse($rows as $i => $r)
+                        @php
+                            $debitAmount = (float) ($r->debit_balance ?? 0);
+                            $creditAmount = $debitAmount > 0 ? 0 : (float) $r->credit_balance;
+                        @endphp
                         <tr>
                             <td>{{ $rows->firstItem() + $i }}</td>
                             <td>{{ $r->date }}</td>
                             <td>{{ $r->employee?->employee_name }} ({{ $r->employee_id }})</td>
                             <td>{{ $r->site_id }}</td>
-                            <td>{{ $r->debit_balance }}</td>
-                            <td>{{ number_format((float)$r->credit_balance, 2) }}</td>
+                            <td>{{ number_format($creditAmount, 2) }}</td>
+                            <td>{{ number_format($debitAmount, 2) }}</td>
                             <td>{{ $r->comment }}</td>
                             <td>{{ $r->enter_by }}</td>
                         </tr>

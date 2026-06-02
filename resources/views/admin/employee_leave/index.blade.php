@@ -61,7 +61,7 @@
                         <td>{{ $r->employee->employee_name ?? '-' }} </td>
                         <td>{{ \Carbon\Carbon::parse($r->leave_date)->format('d-m-Y') }}</td>
                         <td>
-                            {{ $r->leave_type === 'F' ? 'Full Day' : 'Half Day' }}
+                            {{ in_array($r->leave_type, ['A', 'F'], true) ? 'Full Day' : 'Half Day' }}
                         </td>
                         <td style="max-width:280px; white-space:normal;">
                             {{ $r->comment }}

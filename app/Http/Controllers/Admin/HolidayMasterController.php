@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\HolidayMaster;
+use App\Services\HolidayAttendanceService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class HolidayMasterController extends Controller
@@ -25,7 +27,7 @@ class HolidayMasterController extends Controller
         return view('admin.holiday_master.index', compact('holidays'));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, HolidayAttendanceService $holidayAttendanceService)
     {
         $request->validate([
             'holiday_name' => 'required|string|max:255',
@@ -33,7 +35,7 @@ class HolidayMasterController extends Controller
             'description' => 'nullable|string|max:500',
         ]);
 
-        HolidayMaster::create([
+        $holiday = HolidayMaster::create([
             'holiday_name' => $request->holiday_name,
             'holiday_date' => $request->holiday_date,
             'description' => $request->description,
@@ -41,10 +43,12 @@ class HolidayMasterController extends Controller
             'isDelete' => 0,
         ]);
 
-        return back()->with('success', 'Holiday created successfully.');
+        $syncedCount = $holidayAttendanceService->syncHoliday($holiday);
+
+        return back()->with('success', 'Holiday created successfully and marked as L for ' . $syncedCount . ' employees.');
     }
 
-    public function update(Request $request, $holidayId)
+    public function update(Request $request, $holidayId, HolidayAttendanceService $holidayAttendanceService)
     {
         $request->validate([
             'holiday_name' => 'required|string|max:255',
@@ -53,23 +57,36 @@ class HolidayMasterController extends Controller
         ]);
 
         $holiday = HolidayMaster::where('holiday_id', $holidayId)->where('isDelete', 0)->firstOrFail();
+        $oldHolidayDate = Carbon::parse($holiday->holiday_date)->toDateString();
+
         $holiday->update([
             'holiday_name' => $request->holiday_name,
             'holiday_date' => $request->holiday_date,
             'description' => $request->description,
         ]);
 
-        return back()->with('success', 'Holiday updated successfully.');
+        $newHolidayDate = Carbon::parse($holiday->holiday_date)->toDateString();
+        if ($oldHolidayDate !== $newHolidayDate) {
+            $holidayAttendanceService->removeHolidayAttendance($oldHolidayDate);
+        }
+
+        $syncedCount = $holidayAttendanceService->syncHoliday($holiday);
+
+        return back()->with('success', 'Holiday updated successfully and marked as L for ' . $syncedCount . ' employees.');
     }
 
-    public function destroy($holidayId)
+    public function destroy($holidayId, HolidayAttendanceService $holidayAttendanceService)
     {
         $holiday = HolidayMaster::where('holiday_id', $holidayId)->where('isDelete', 0)->firstOrFail();
+        $holidayDate = Carbon::parse($holiday->holiday_date)->toDateString();
+
         $holiday->update([
             'isDelete' => 1,
             'iStatus' => 0,
         ]);
 
-        return back()->with('success', 'Holiday deleted successfully.');
+        $removedCount = $holidayAttendanceService->removeHolidayAttendance($holidayDate);
+
+        return back()->with('success', 'Holiday deleted successfully and removed ' . $removedCount . ' auto holiday attendance entries.');
     }
 }

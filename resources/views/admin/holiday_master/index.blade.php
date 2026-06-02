@@ -72,24 +72,38 @@
                                 <td>{{ \Carbon\Carbon::parse($holiday->holiday_date)->format('d M Y') }}</td>
                                 <td>{{ $holiday->description ?: '-' }}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ $holiday->holiday_id }}">Edit</button>
+                                <button
+                                        type="button"
+                                        class="btn btn-sm btn-primary"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editHolidayModal{{ $holiday->holiday_id }}"
+                                    >Edit</button>
                                     <form method="POST" action="{{ route('admin.holiday-master.delete', $holiday->holiday_id) }}" class="d-inline">
                                         @csrf
                                         @method('DELETE')
-                                        <button class="btn btn-sm btn-danger" onclick="return confirm('Delete this holiday?')">Delete</button>
+                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this holiday?')">Delete</button>
                                     </form>
                                 </td>
                             </tr>
 
-                            <div class="modal fade" id="editModal{{ $holiday->holiday_id }}" tabindex="-1" aria-hidden="true">
-                              <div class="modal-dialog">
+                        @empty
+                            <tr><td colspan="5" class="text-center">No holidays found.</td></tr>
+                        @endforelse
+                        </tbody>
+                    </table>
+
+                    {{ $holidays->links() }}
+
+                    @foreach ($holidays as $holiday)
+                        <div class="modal fade" id="editHolidayModal{{ $holiday->holiday_id }}" tabindex="-1" aria-labelledby="editHolidayModalLabel{{ $holiday->holiday_id }}" aria-hidden="true">
+                            <div class="modal-dialog">
                                 <form method="POST" action="{{ route('admin.holiday-master.update', $holiday->holiday_id) }}" class="modal-content">
                                     @csrf
                                     @method('PUT')
                                     <div class="modal-header">
-                                        <h5 class="modal-title">Edit Holiday</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                    </div>
+                                        <h5 class="modal-title" id="editHolidayModalLabel{{ $holiday->holiday_id }}">Edit Holiday</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                 </div>
                                     <div class="modal-body">
                                         <div class="mb-3">
                                             <label class="form-label">Holiday Name</label>
@@ -97,7 +111,7 @@
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label">Holiday Date</label>
-                                            <input type="date" name="holiday_date" value="{{ $holiday->holiday_date }}" class="form-control" required>
+                                            <input type="date" name="holiday_date" value="{{ \Carbon\Carbon::parse($holiday->holiday_date)->format('Y-m-d') }}" class="form-control" required>
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label">Description</label>
@@ -109,15 +123,9 @@
                                         <button type="submit" class="btn btn-primary">Update</button>
                                     </div>
                                 </form>
-                              </div>
-                            </div>
-                        @empty
-                            <tr><td colspan="5" class="text-center">No holidays found.</td></tr>
-                        @endforelse
-                        </tbody>
-                    </table>
-
-                    {{ $holidays->links() }}
+                             </div>
+                        </div>
+                    @endforeach
                 </div>
             </div>
         </div>

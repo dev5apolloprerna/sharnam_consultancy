@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\EmployeeLeaveController;
 use App\Http\Controllers\Admin\SalaryProcessController;
 use App\Http\Controllers\Admin\EmployeeLocationHistoryController;
 use App\Http\Controllers\Admin\HolidayMasterController;
+use App\Http\Controllers\Admin\EmployeeLeaveLedgerController;
 
 Route::fallback(function () {
      return view('errors.404');
@@ -142,6 +143,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
 Route::middleware(['auth'])->prefix('admin')->group(function () {
     Route::get('/employee-leave', [EmployeeLeaveController::class, 'index'])->name('admin.employee_leave.index');
     Route::post('/employee-leave/status', [EmployeeLeaveController::class, 'updateStatus'])->name('admin.employee_leave.status');
+});
+
+Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
+    Route::get('employee-leave-ledger', [EmployeeLeaveLedgerController::class, 'index'])->name('employee-leave-ledger.index');
+    Route::post('employee-leave-ledger/manual-adjustment', [EmployeeLeaveLedgerController::class, 'manualAdjustment'])->name('employee-leave-ledger.manual-adjustment');
+    Route::post('employee-leave-ledger/monthly-credit', [EmployeeLeaveLedgerController::class, 'monthlyCredit'])->name('employee-leave-ledger.monthly-credit');
 });
 
 

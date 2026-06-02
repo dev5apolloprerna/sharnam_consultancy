@@ -26,4 +26,8 @@ class EmployeeLeaveMaster extends Model
     {
         return $this->belongsTo(EmployeeMaster::class, 'employee_id', 'employee_id');
     }
+      public function ledgerEntries()
+    {
+        return $this->hasMany(EmployeeLeaveLedger::class, 'emp_leave_id', 'emp_leave_id');
+    }
 }

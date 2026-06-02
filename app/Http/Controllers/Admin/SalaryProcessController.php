@@ -232,7 +232,7 @@
         $status = strtoupper((string) $status);
         $comments = strtoupper($comments);
 
-        if ($status === 'P') {
+        if (in_array($status, ['P', 'L'], true)) {
             return 0.0;
         }
 

@@ -186,12 +186,12 @@ use Carbon\Carbon;
      }
 
 
-    private function leaveUnitFromAttendance(?string $status, string $comments): float
+   private function leaveUnitFromAttendance(?string $status, string $comments): float
     {
         $status = strtoupper((string) $status);
         $comments = strtoupper($comments);
 
-        if ($status === 'P') {
+        if (in_array($status, ['P', 'L'], true)) {
             return 0.0;
         }
 

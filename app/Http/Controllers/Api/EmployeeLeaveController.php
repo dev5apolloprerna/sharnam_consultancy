@@ -44,7 +44,7 @@ class EmployeeLeaveController extends Controller
             $request->validate([
                 'employee_id' => 'required|exists:employee_master,employee_id',
                 'leave_date'  => 'required|date',
-                'leave_type'  => 'required|in:F,H',
+                'leave_type'  => 'required|in:A,H,F',
                 'comment'     => 'required|string',
                 'site_id'     => 'nullable|integer', // optional, fallback below
             ]);
@@ -58,12 +58,13 @@ class EmployeeLeaveController extends Controller
 
         $leaveDate = Carbon::parse($request->leave_date)->toDateString();
         $employeeId = (int) $request->employee_id;
+        $leaveType = $this->normalizeLeaveType((string) $request->leave_type);
 
         // If you don't have employee->site mapping, require site_id OR default it to 0
         $siteId = $request->filled('site_id') ? (int) $request->site_id : 0;
 
         // NOTE: MyISAM doesn't support transactions; still safe logically, but best to use InnoDB if possible.
-        return DB::transaction(function () use ($employeeId, $leaveDate, $siteId, $request) {
+        return DB::transaction(function () use ($employeeId, $leaveDate, $siteId, $request, $leaveType) {
 
             // Prevent duplicate leave same date
             $already = EmployeeLeaveMaster::where('employee_id', $employeeId)
@@ -81,7 +82,7 @@ class EmployeeLeaveController extends Controller
             $leave = EmployeeLeaveMaster::create([
                 'employee_id' => $employeeId,
                 'leave_date'  => $leaveDate,
-                'leave_type'  => $request->leave_type,
+                'leave_type'  => $leaveType,
                 'comment'     => $request->comment,
                 'iStatus'     => 1,
                 'isDelete'    => 0,
@@ -104,10 +105,10 @@ class EmployeeLeaveController extends Controller
             $payload = [
                 'employee_id'      => $employeeId,
                 'site_id'          => $siteId,
-                'status'           => 'A',
+                'status'           => $leaveType,
                 'start_date_time'  => Carbon::parse($leaveDate)->startOfDay(), // 00:00:00
                 'end_date_time'    => Carbon::parse($leaveDate)->startOfDay(),
-                'comments'         => 'Auto absent: Leave (' . $request->leave_type . ')',
+                'comments'         => 'Auto leave (' . $leaveType . '): ' . $this->leaveTypeLabel($leaveType),
                 'iStatus'          => 1,
                 'isDelete'         => 0,
                 'updated_at'       => now(),
@@ -115,7 +116,7 @@ class EmployeeLeaveController extends Controller
 
             if ($attendance) {
                 // If someone already punched P for that date, you can block leave OR override.
-                // Here we override to A as per requirement.
+                // Here we override with A for full-day leave or H for half-day leave.
                 $attendance->update($payload);
             } else {
                 $payload['created_at'] = now();
@@ -124,7 +125,7 @@ class EmployeeLeaveController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Leave created and attendance marked absent automatically.',
+                'message' => 'Leave created and attendance marked automatically.',
                 'data'    => $leave
             ]);
         });
@@ -152,7 +153,7 @@ class EmployeeLeaveController extends Controller
         try {
             $request->validate([
                 'leave_date' => 'required|date',
-                'leave_type' => 'required|in:F,H',
+                'leave_type' => 'required|in:A,H,F',
                 'comment'    => 'required|string',
                 'site_id'    => 'nullable|integer',
             ]);
@@ -173,9 +174,10 @@ class EmployeeLeaveController extends Controller
         }
 
         $newDate = Carbon::parse($request->leave_date)->toDateString();
+        $leaveType = $this->normalizeLeaveType((string) $request->leave_type);
         $siteId = $request->filled('site_id') ? (int) $request->site_id : 0;
 
-        return DB::transaction(function () use ($leave, $newDate, $siteId, $request) {
+        return DB::transaction(function () use ($leave, $newDate, $siteId, $request, $leaveType) {
 
             $oldDate = Carbon::parse($leave->leave_date)->toDateString();
 
@@ -187,7 +189,7 @@ class EmployeeLeaveController extends Controller
                     ->first();
 
                 // If you only want to delete if it's "Auto absent: Leave", then check comments/status:
-                if ($oldAttendance && $oldAttendance->status === 'A') {
+                if ($oldAttendance && $this->isAutoLeaveAttendance($oldAttendance)) {
                     $oldAttendance->update(['isDelete' => 1, 'updated_at' => now()]);
                 }
             }
@@ -195,7 +197,7 @@ class EmployeeLeaveController extends Controller
             // update leave
             $leave->update([
                 'leave_date' => $newDate,
-                'leave_type' => $request->leave_type,
+                'leave_type' => $leaveType,
                 'comment'    => $request->comment,
                 'updated_at' => now(),
             ]);
@@ -209,10 +211,10 @@ class EmployeeLeaveController extends Controller
             $payload = [
                 'employee_id'      => $leave->employee_id,
                 'site_id'          => $siteId,
-                'status'           => 'A',
+                'status'           => $leaveType,
                 'start_date_time'  => Carbon::parse($newDate)->startOfDay(),
                 'end_date_time'    => Carbon::parse($newDate)->startOfDay(),
-                'comments'         => 'Auto absent: Leave (' . $request->leave_type . ')',
+                'comments'         => 'Auto leave (' . $leaveType . '): ' . $this->leaveTypeLabel($leaveType),
                 'iStatus'          => 1,
                 'isDelete'         => 0,
                 'updated_at'       => now(),
@@ -321,14 +323,40 @@ class EmployeeLeaveController extends Controller
                 ->first();
 
             // Remove only if it's absent due to leave (you can tighten this condition as you want)
-            if ($attendance && $attendance->status === 'A') {
+            if ($attendance && $this->isAutoLeaveAttendance($attendance)) {
                 $attendance->update(['isDelete' => 1, 'updated_at' => now()]);
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Leave deleted and attendance entry removed (soft).'
+                'message' => 'Leave deleted and auto leave attendance entry removed (soft).'
             ]);
         });
     }
+private function normalizeLeaveType(string $leaveType): string
+    {
+        $leaveType = strtoupper($leaveType);
+
+        return $leaveType === 'F' ? 'A' : $leaveType;
+    }
+
+    private function leaveTypeLabel(string $leaveType): string
+    {
+        return $leaveType === 'H' ? 'Half Day Leave' : 'Full Day Leave';
+    }
+
+    private function isAutoLeaveAttendance(EmployeeAttendance $attendance): bool
+    {
+        $comments = (string) $attendance->comments;
+
+        return in_array(strtoupper((string) $attendance->status), ['A', 'H'], true)
+            && ($this->startsWith($comments, 'Auto leave (')
+                || $this->startsWith($comments, 'Auto absent: Leave ('));
+    }
+
+    private function startsWith(string $value, string $prefix): bool
+    {
+        return substr($value, 0, strlen($prefix)) === $prefix;
+    }
+
 }

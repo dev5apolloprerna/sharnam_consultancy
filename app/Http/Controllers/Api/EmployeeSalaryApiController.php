@@ -151,15 +151,12 @@ use Carbon\Carbon;
             ->orderBy('start_date_time')
              ->get();
  
-        $dailyUnits = [];
+        $dailyWorkedUnits = [];
         foreach ($records as $record) {
             $date = Carbon::parse($record->start_date_time)->toDateString();
-            $unit = $this->leaveUnitFromAttendance($record->status, (string) ($record->comments ?? ''));
-            $existing = $dailyUnits[$date] ?? null;
-
-            if ($existing === null || $unit < $existing) {
-                $dailyUnits[$date] = $unit;
-            }
+            $leaveUnit = $this->leaveUnitFromAttendance($record->status, (string) ($record->comments ?? ''));
+            $workedUnit = max(0, 1 - $leaveUnit);
+            $dailyWorkedUnits[$date] = min(1.0, ($dailyWorkedUnits[$date] ?? 0) + $workedUnit);
         }
 
          $fullDay = 0;
@@ -170,7 +167,7 @@ use Carbon\Carbon;
             if (isset($holidayDates[$dateString])) {
                 continue;
             }
-            $unit = $dailyUnits[$dateString] ?? 1.0; // if attendance missing => full leave
+            $unit = isset($dailyWorkedUnits[$dateString]) ? max(0, 1 - $dailyWorkedUnits[$dateString]) : 1.0; // if attendance missing => full leave
  
             if ($unit >= 1) {
                 $fullDay++;
@@ -215,11 +212,19 @@ use Carbon\Carbon;
 
     private function holidayDateMap(Carbon $startDate, Carbon $endDate): array
     {
-        return HolidayMaster::where('isDelete', 0)
+        $holidayDates = HolidayMaster::where('isDelete', 0)
             ->whereBetween('holiday_date', [$startDate->toDateString(), $endDate->toDateString()])
             ->pluck('holiday_date')
             ->map(fn ($date) => Carbon::parse($date)->toDateString())
             ->flip()
             ->all();
+    for ($date = $startDate->copy()->startOfDay(); $date->lte($endDate); $date->addDay()) {
+            if ($date->isSunday()) {
+                $holidayDates[$date->toDateString()] = true;
+            }
+        }
+
+        return $holidayDates;
+        
     }
 }

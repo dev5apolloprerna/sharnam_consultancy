@@ -186,16 +186,13 @@
             ->orderBy('start_date_time')
              ->get();
  
-        $dailyUnits = [];
+        $dailyWorkedUnits = [];
         foreach ($records as $record) {
             $employeeId = (int) $record->employee_id;
             $date = Carbon::parse($record->start_date_time)->toDateString();
-            $unit = $this->leaveUnitFromAttendance($record->status, (string) ($record->comments ?? ''));
-
-            $existing = $dailyUnits[$employeeId][$date] ?? null;
-            if ($existing === null || $unit < $existing) {
-                $dailyUnits[$employeeId][$date] = $unit;
-             }
+            $leaveUnit = $this->leaveUnitFromAttendance($record->status, (string) ($record->comments ?? ''));
+            $workedUnit = max(0, 1 - $leaveUnit);
+            $dailyWorkedUnits[$employeeId][$date] = min(1.0, ($dailyWorkedUnits[$employeeId][$date] ?? 0) + $workedUnit);
         }
 
         $counts = [];
@@ -208,8 +205,7 @@
                 if (isset($holidayDates[$dateString])) {
                     continue;
                 }
-                $unit = $dailyUnits[$employeeId][$dateString] ?? 1.0; // if attendance missing => full leave
-
+                $unit = isset($dailyWorkedUnits[$employeeId][$dateString]) ? max(0, 1 - $dailyWorkedUnits[$employeeId][$dateString]) : 1.0; // if attendance missing => full leave
 
                 if ($unit >= 1) {
                     $fullDay++;
@@ -301,11 +297,19 @@
 
     private function holidayDateMap(Carbon $startDate, Carbon $endDate): array
     {
-        return HolidayMaster::where('isDelete', 0)
+        $holidayDates = HolidayMaster::where('isDelete', 0)
             ->whereBetween('holiday_date', [$startDate->toDateString(), $endDate->toDateString()])
             ->pluck('holiday_date')
             ->map(fn ($date) => Carbon::parse($date)->toDateString())
             ->flip()
             ->all();
+
+        for ($date = $startDate->copy()->startOfDay(); $date->lte($endDate); $date->addDay()) {
+            if ($date->isSunday()) {
+                $holidayDates[$date->toDateString()] = true;
+            }
+        }
+
+        return $holidayDates;
     }
  }

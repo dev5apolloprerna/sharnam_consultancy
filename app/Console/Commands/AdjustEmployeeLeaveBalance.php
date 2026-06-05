@@ -12,7 +12,8 @@ class AdjustEmployeeLeaveBalance extends Command
         {employee_id : Employee ID to adjust}
         {adjustment_type : credit or debit}
         {leave_units : Leave units to add or subtract}
-        {--date= : Transaction date (Y-m-d). Defaults to today.}
+        {--from= : From date (Y-m-d). Defaults to today.}
+        {--to= : To date (Y-m-d). Defaults to from date.}
         {--description= : Manual adjustment note}';
 
     protected $description = 'Manually credit or debit leave balance for a particular employee.';
@@ -33,12 +34,24 @@ class AdjustEmployeeLeaveBalance extends Command
             return Command::FAILURE;
         }
 
+        $fromDate = $this->option('from') ? Carbon::parse((string) $this->option('from')) : null;
+        $toDate = $this->option('to') ? Carbon::parse((string) $this->option('to')) : null;
+
+        if ($fromDate && $toDate && $toDate->lt($fromDate)) {
+            $this->error('to date must be greater than or equal to from date.');
+            return Command::FAILURE;
+        }
+
+
+
         $ledger = $ledgerService->manualAdjustment(
             (int) $this->argument('employee_id'),
             $adjustmentType,
             $leaveUnits,
-            $this->option('date') ? Carbon::parse((string) $this->option('date')) : null,
-            $this->option('description') ?: null
+            $this->option('description') ?: null,
+            null,
+            $fromDate,
+            $toDate
         );
 
         $this->info('Manual leave ' . $adjustmentType . ' saved successfully.');

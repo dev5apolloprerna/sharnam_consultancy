@@ -146,9 +146,12 @@
          $salary = EmployeeSalaryPayment::with('employee.siteAssignments.site')->findOrFail($salaryId);
         $leaveCounts = $this->leaveCountsByEmployee((int) $salary->salary_month, (int) $salary->salary_year, [(int) $salary->employee_id]);
  
+         [$periodStart, $periodEnd] = $this->salaryPeriodBounds((int) $salary->salary_month, (int) $salary->salary_year);
+
          $salary->full_day_leave = $leaveCounts[$salary->employee_id]['full_day'] ?? 0;
          $salary->half_day_leave = $leaveCounts[$salary->employee_id]['half_day'] ?? 0;
- 
+          $salary->manual_debit_leave = app(EmployeeLeaveLedgerService::class)->manualDebitUnitsForPeriod((int) $salary->employee_id, $periodStart, $periodEnd);
+
          $pdf = Pdf::loadView('pdf.employee_salary_statement', [
              'employee' => $salary->employee,
              'rows' => collect([$salary]),
@@ -248,12 +251,15 @@
         $fullDayLeave = (float) ($employeeLeave['full_day'] ?? 0);
         $halfDayLeave = (float) ($employeeLeave['half_day'] ?? 0);
         $halfDayUnits = $halfDayLeave * 0.5;
-        $totalLeaveUnits = $fullDayLeave + $halfDayUnits;
+        [$startDate, $endDate] = $this->salaryPeriodBounds($month, $year);
+        $ledgerService = app(EmployeeLeaveLedgerService::class);
+        $manualDebitUnits = $ledgerService->manualDebitUnitsForPeriod($employeeId, $startDate, $endDate);
+        $totalLeaveUnits = $fullDayLeave + $halfDayUnits + $manualDebitUnits;
+
 /*        $freeLeaveUnits = 2.0;
         $excessLeaveUnits = max(0, $totalLeaveUnits - $freeLeaveUnits);
 */
-        [$startDate, $endDate] = $this->salaryPeriodBounds($month, $year);
-        $freeLeaveUnits = app(EmployeeLeaveLedgerService::class)->availableUnitsForPeriod($employeeId, $startDate, $endDate);
+        $freeLeaveUnits = $ledgerService->availableUnitsForPeriod($employeeId, $startDate, $endDate);
         $excessLeaveUnits = max(0, $totalLeaveUnits - $freeLeaveUnits);
         $periodDays = $startDate->diffInDays($endDate) + 1;
         $holidayDays = count($this->holidayDateMap($startDate, $endDate));
@@ -266,6 +272,7 @@
         return [
             'full_day' => (int) $fullDayLeave,
             'half_day' => (int) $halfDayLeave,
+            'manual_debit_units' => $manualDebitUnits,
             'total_units' => $totalLeaveUnits,
             'free_units' => $freeLeaveUnits,
             'chargeable_units' => $excessLeaveUnits,

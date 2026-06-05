@@ -21,7 +21,8 @@ class EmployeeLeaveLedger extends Model
         'entry_type',
         'leave_month',
         'leave_year',
-        'transaction_date',
+        'from_date',
+        'to_date',
         'opening_balance',
         'credit_units',
         'debit_units',
@@ -32,7 +33,8 @@ class EmployeeLeaveLedger extends Model
     ];
 
     protected $casts = [
-        'transaction_date' => 'date',
+        'from_date' => 'date',
+        'to_date' => 'date',
         'opening_balance' => 'float',
         'credit_units' => 'float',
         'debit_units' => 'float',

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\EmployeeLeaveMaster;
 use App\Services\EmployeeLeaveLedgerService;
+use App\Models\EmployeeMaster;
 use Illuminate\Http\Request;
 
 class EmployeeLeaveController extends Controller
@@ -12,6 +13,7 @@ class EmployeeLeaveController extends Controller
     public function index(Request $request)
     {
         $status = $request->get('status', 'pending'); // pending default
+        $employeeId = $request->filled('employee_id') ? (int) $request->employee_id : null;
 
         $query = EmployeeLeaveMaster::with('employee')
             ->where('isDelete', 0)
@@ -20,10 +22,19 @@ class EmployeeLeaveController extends Controller
         if (in_array($status, ['pending','accepted','reject'], true)) {
             $query->where('status', $status);
         }
+                if ($employeeId) {
+            $query->where('employee_id', $employeeId);
+        }
 
         $leaves = $query->orderBy('leave_date', 'desc')
             ->orderBy('emp_leave_id', 'desc')
             ->get();
+
+          $employees = EmployeeMaster::where('isDelete', 0)
+            ->where('iStatus', 1)
+            ->orderBy('employee_name')
+            ->get(['employee_id', 'employee_name']);
+
 
         $counts = [
             'pending'  => EmployeeLeaveMaster::where('isDelete',0)->where('iStatus',1)->where('status','pending')->count(),
@@ -31,7 +42,7 @@ class EmployeeLeaveController extends Controller
             'reject'   => EmployeeLeaveMaster::where('isDelete',0)->where('iStatus',1)->where('status','reject')->count(),
         ];
 
-        return view('admin.employee_leave.index', compact('leaves','status','counts'));
+        return view('admin.employee_leave.index', compact('leaves','status','counts','employees','employeeId'));
     }
 
     public function updateStatus(Request $request, EmployeeLeaveLedgerService $ledgerService)

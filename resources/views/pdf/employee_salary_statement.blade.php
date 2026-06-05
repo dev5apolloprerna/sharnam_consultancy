@@ -123,7 +123,8 @@
     $workingDays = (int) now()->setDate((int) $salaryYear, (int) $salaryMonth, 1)->daysInMonth;
     $fullDayLeave = (float) ($row->full_day_leave ?? 0);
     $halfDayLeave = (float) ($row->half_day_leave ?? 0);
-    $lwpDays = $fullDayLeave + ($halfDayLeave * 0.5);
+    $manualDebitLeave = (float) ($row->manual_debit_leave ?? 0);
+    $lwpDays = $fullDayLeave + ($halfDayLeave * 0.5) + $manualDebitLeave;
 
     $basicSalary = (float) ($row->amount ?? 0);
     $mealAllowance = 0;
@@ -185,7 +186,12 @@
         <td class="label">LWP Days:</td>
         <td class="value">{{ number_format($lwpDays, 1) }}</td>
     </tr>
-
+ <tr>
+        <td class="label">Manual Ledger Leave:</td>
+        <td class="value">{{ number_format($manualDebitLeave, 1) }}</td>
+        <td class="label"></td>
+        <td class="value"></td>
+    </tr>
     <tr>
         <th colspan="2" class="heading solid">Description</th>
         <th class="heading solid">Earnings</th>

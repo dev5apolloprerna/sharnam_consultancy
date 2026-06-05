@@ -37,16 +37,23 @@
                                 </select>
                                 @error('adjustment_type')<span class="text-danger">{{ $message }}</span>@enderror
                             </div>
+                             <div class="col-md-6">
+                                <label class="form-label">From Date</label>
+                                <input type="date" name="from_date" id="manual_from_date" class="form-control" value="{{ old('from_date') }}">
+                                @error('from_date')<span class="text-danger">{{ $message }}</span>@enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">To Date</label>
+                                <input type="date" name="to_date" id="manual_to_date" class="form-control" value="{{ old('to_date') }}">
+                                <small class="text-muted">Use from/to dates for longer leave. Units are counted inclusively.</small>
+                                @error('to_date')<span class="text-danger d-block">{{ $message }}</span>@enderror
+                            </div>
                             <div class="col-md-6">
                                 <label class="form-label">Leave Units <span class="text-danger">*</span></label>
-                                <input type="number" name="leave_units" class="form-control" min="0.5" step="0.5" value="{{ old('leave_units', 1) }}" required>
+                                <input type="number" name="leave_units" id="manual_leave_units" class="form-control" min="0.5" step="0.5" value="{{ old('leave_units', 1) }}">
                                 @error('leave_units')<span class="text-danger">{{ $message }}</span>@enderror
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Transaction Date</label>
-                                <input type="date" name="transaction_date" class="form-control" value="{{ old('transaction_date', now()->toDateString()) }}">
-                                @error('transaction_date')<span class="text-danger">{{ $message }}</span>@enderror
-                            </div>
+                           
                             <div class="col-md-12">
                                 <label class="form-label">Description</label>
                                 <textarea name="description" class="form-control" rows="2" placeholder="Reason for manual leave adjustment">{{ old('description') }}</textarea>
@@ -147,7 +154,19 @@
                             <tr>
                                 <td>{{ $index + 1 }}</td>
                                 <td>{{ $row->employee->employee_name ?? '-' }}</td>
-                                <td>{{ $row->transaction_date ? \Carbon\Carbon::parse($row->transaction_date)->format('d-m-Y') : '-' }}</td>
+                                <td>
+                                    @php
+                                        $fromDate = $row->from_date ?: $row->transaction_date;
+                                        $toDate = $row->to_date ?: $fromDate;
+                                    @endphp
+                                    @if($fromDate && $toDate && !\Carbon\Carbon::parse($fromDate)->isSameDay(\Carbon\Carbon::parse($toDate)))
+                                        {{ \Carbon\Carbon::parse($fromDate)->format('d-m-Y') }} to {{ \Carbon\Carbon::parse($toDate)->format('d-m-Y') }}
+                                    @elseif($fromDate)
+                                        {{ \Carbon\Carbon::parse($fromDate)->format('d-m-Y') }}
+                                    @else
+                                        -
+                                    @endif
+                                </td>
                                 <td>{{ ucwords(str_replace('_', ' ', $row->entry_type)) }}</td>
                                 <td>{{ number_format((float) $row->opening_balance, 2) }}</td>
                                 <td>{{ number_format((float) $row->credit_units, 2) }}</td>
@@ -164,4 +183,35 @@
         </div>
     </div>
 </div>
+@endsection
+@section('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const fromDateInput = document.getElementById('manual_from_date');
+        const toDateInput = document.getElementById('manual_to_date');
+        const leaveUnitsInput = document.getElementById('manual_leave_units');
+
+        function updateLeaveUnitsFromDateRange() {
+            if (!fromDateInput.value || !toDateInput.value) {
+                return;
+            }
+
+            const fromDate = new Date(fromDateInput.value + 'T00:00:00');
+            const toDate = new Date(toDateInput.value + 'T00:00:00');
+
+            if (toDate < fromDate) {
+                leaveUnitsInput.value = '';
+                return;
+            }
+
+            const millisecondsPerDay = 24 * 60 * 60 * 1000;
+            const leaveDays = Math.round((toDate - fromDate) / millisecondsPerDay) + 1;
+            leaveUnitsInput.value = leaveDays;
+        }
+
+        fromDateInput.addEventListener('change', updateLeaveUnitsFromDateRange);
+        toDateInput.addEventListener('change', updateLeaveUnitsFromDateRange);
+        updateLeaveUnitsFromDateRange();
+    });
+</script>
 @endsection

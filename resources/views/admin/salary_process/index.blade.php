@@ -62,6 +62,7 @@
                                     $leaveSummary = $leaveSummaries[$employee->employee_id] ?? [
                                         'full_day' => 0,
                                         'half_day' => 0,
+                                        'manual_debit_units' => 0,
                                         'total_units' => 0,
                                         'free_units' => 0,
                                         'chargeable_units' => 0,
@@ -80,6 +81,9 @@
                                     <td>
                                         <span class="badge bg-primary">F: {{ $leaveSummary['full_day'] }}</span>
                                         <span class="badge bg-info text-dark">H: {{ $leaveSummary['half_day'] }}</span>
+                                        @if((float) $leaveSummary['manual_debit_units'] > 0)
+                                            <span class="badge bg-warning text-dark">Manual: {{ number_format((float) $leaveSummary['manual_debit_units'], 1) }}</span>
+                                        @endif
                                     </td>
                                     <td>
                                         <button
@@ -91,6 +95,7 @@
                                             data-period="{{ $salaryPeriodLabel }}"
                                             data-full-day="{{ $leaveSummary['full_day'] }}"
                                             data-half-day="{{ $leaveSummary['half_day'] }}"
+                                            data-manual-debit="{{ number_format($leaveSummary['manual_debit_units'], 1, '.', '') }}"
                                             data-total-leave="{{ number_format($leaveSummary['total_units'], 1, '.', '') }}"
                                             data-free-leave="{{ number_format($leaveSummary['free_units'], 1, '.', '') }}"
                                             data-extra-leave="{{ number_format($leaveSummary['chargeable_units'], 1, '.', '') }}"
@@ -166,6 +171,7 @@
                                 <tr><th>Salary Period</th><td id="modalSalaryPeriod">-</td></tr>
                                 <tr><th>Full Day Leave</th><td id="modalFullDayLeave">-</td></tr>
                                 <tr><th>Half Day Leave</th><td id="modalHalfDayLeave">-</td></tr>
+                                <tr><th>Manual Ledger Leave</th><td id="modalManualDebitLeave">-</td></tr>
                                 <tr><th>Total Leave Units</th><td id="modalTotalLeaveUnits">-</td></tr>
                                 <tr><th>Available Free Leave</th><td id="modalFreeLeaveUnits">-</td></tr>
                                 <tr><th>Chargeable Leave</th><td id="modalExtraLeaveUnits">-</td></tr>
@@ -212,6 +218,7 @@
             document.getElementById('modalSalaryPeriod').textContent = this.dataset.period || '-';
             document.getElementById('modalFullDayLeave').textContent = this.dataset.fullDay || '0';
             document.getElementById('modalHalfDayLeave').textContent = this.dataset.halfDay || '0';
+            document.getElementById('modalManualDebitLeave').textContent = this.dataset.manualDebit || '0';
             document.getElementById('modalTotalLeaveUnits').textContent = this.dataset.totalLeave || '0';
             document.getElementById('modalFreeLeaveUnits').textContent = this.dataset.freeLeave || '0';
             document.getElementById('modalExtraLeaveUnits').textContent = this.dataset.extraLeave || '0';

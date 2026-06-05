@@ -13,15 +13,15 @@
 
         <div class="btn-group">
             <a class="btn btn-outline-primary {{ $status=='pending'?'active':'' }}"
-               href="{{ route('admin.employee_leave.index', ['status'=>'pending']) }}">
+               href="{{ route('admin.employee_leave.index', array_filter(['status'=>'pending', 'employee_id'=>$employeeId])) }}">
                 Pending ({{ $counts['pending'] }})
             </a>
             <a class="btn btn-outline-success {{ $status=='accepted'?'active':'' }}"
-               href="{{ route('admin.employee_leave.index', ['status'=>'accepted']) }}">
+               href="{{ route('admin.employee_leave.index', array_filter(['status'=>'accepted', 'employee_id'=>$employeeId])) }}">
                 Accepted ({{ $counts['accepted'] }})
             </a>
             <a class="btn btn-outline-danger {{ $status=='reject'?'active':'' }}"
-               href="{{ route('admin.employee_leave.index', ['status'=>'reject']) }}">
+               href="{{ route('admin.employee_leave.index', array_filter(['status'=>'reject', 'employee_id'=>$employeeId])) }}">
                 Rejected ({{ $counts['reject'] }})
             </a>
         </div>
@@ -39,6 +39,27 @@
 
     <div class="card">
         <div class="card-body table-responsive">
+        
+            <form method="GET" action="{{ route('admin.employee_leave.index') }}" class="row g-2 align-items-end mb-3">
+                <input type="hidden" name="status" value="{{ $status }}">
+                <div class="col-md-4">
+                    <label for="employee_id" class="form-label">Employee</label>
+                    <select name="employee_id" id="employee_id" class="form-select">
+                        <option value="">All Employees</option>
+                        @foreach($employees as $employee)
+                            <option value="{{ $employee->employee_id }}" {{ (string) $employeeId === (string) $employee->employee_id ? 'selected' : '' }}>
+                                {{ $employee->employee_name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-auto">
+                    <button type="submit" class="btn btn-primary">Search</button>
+                    @if($employeeId)
+                        <a href="{{ route('admin.employee_leave.index', ['status' => $status]) }}" class="btn btn-light">Clear</a>
+                    @endif
+                </div>
+            </form>
 
             <table class="table table-bordered align-middle">
                 <thead>

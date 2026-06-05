@@ -53,7 +53,8 @@ class EmployeeLeaveLedgerService
                 'entry_type' => EmployeeLeaveLedger::TYPE_MONTHLY_CREDIT,
                 'leave_month' => (int) $monthDate->month,
                 'leave_year' => (int) $monthDate->year,
-                'transaction_date' => $monthDate->toDateString(),
+                'from_date' => $monthDate->toDateString(),
+                'to_date' => $monthDate->toDateString(),
                 'opening_balance' => $openingBalance,
                 'credit_units' => $creditUnits,
                 'debit_units' => 0,
@@ -92,7 +93,8 @@ class EmployeeLeaveLedgerService
                 'entry_type' => EmployeeLeaveLedger::TYPE_LEAVE_DEBIT,
                 'leave_month' => (int) $leaveDate->month,
                 'leave_year' => (int) $leaveDate->year,
-                'transaction_date' => $leaveDate->toDateString(),
+                'from_date' => $leaveDate->toDateString(),
+                'to_date' => $leaveDate->toDateString(),
                 'opening_balance' => $openingBalance,
                 'credit_units' => 0,
                 'debit_units' => $debitUnits,
@@ -135,22 +137,60 @@ class EmployeeLeaveLedgerService
     }
 
 
-    public function manualAdjustment(
-        int $employeeId,
-        string $adjustmentType,
-        float $leaveUnits,
-        ?Carbon $transactionDate = null,
-        ?string $description = null,
-        ?int $createdBy = null
+   public function manualAdjustment(
+    int $employeeId,
+    string $adjustmentType,
+    float $leaveUnits,
+    $description = null,
+    $createdBy = null,
+    $fromDate = null,
+    $toDate = null,
+    $extraDates = null
     ): EmployeeLeaveLedger {
-        $transactionDate = ($transactionDate ?: now())->copy()->startOfDay();
+
+        if ($description instanceof Carbon) {
+            $legacyTransactionDate = $description;
+            $legacyDescription = is_string($createdBy) ? $createdBy : null;
+            $legacyCreatedBy = is_numeric($fromDate) ? (int) $fromDate : null;
+
+            $legacyFromDate = $toDate instanceof Carbon
+                ? $toDate
+                : $legacyTransactionDate;
+
+            $legacyToDate = $legacyFromDate;
+
+            if (is_array($extraDates) && isset($extraDates[0]) && $extraDates[0] instanceof Carbon) {
+                $legacyToDate = $extraDates[0];
+            } elseif ($extraDates instanceof Carbon) {
+                $legacyToDate = $extraDates;
+            }
+
+            $description = $legacyDescription;
+            $createdBy = $legacyCreatedBy;
+            $fromDate = $legacyFromDate;
+            $toDate = $legacyToDate;
+        } else {
+            $description = is_string($description) ? $description : null;
+            $createdBy = is_numeric($createdBy) ? (int) $createdBy : null;
+            $fromDate = $fromDate instanceof Carbon ? $fromDate : null;
+            $toDate = $toDate instanceof Carbon ? $toDate : null;
+        }
+
+        $fromDate = ($fromDate ?: now())->copy()->startOfDay();
+        $toDate = ($toDate ?: $fromDate)->copy()->startOfDay();
+
+        
         $adjustmentType = strtolower($adjustmentType);
         $isCredit = $adjustmentType === 'credit';
         $entryType = $isCredit ? EmployeeLeaveLedger::TYPE_MANUAL_CREDIT : EmployeeLeaveLedger::TYPE_MANUAL_DEBIT;
         $leaveUnits = round($leaveUnits, 2);
         $reference = $this->manualAdjustmentReference($entryType);
 
-        return DB::transaction(function () use ($employeeId, $transactionDate, $entryType, $isCredit, $leaveUnits, $reference, $description, $createdBy) {
+        $description = $this->manualAdjustmentDescription($description, $isCredit, $fromDate, $toDate);
+
+        $description = $this->manualAdjustmentDescription($description, $isCredit, $fromDate, $toDate);
+
+        return DB::transaction(function () use ($employeeId, $fromDate, $toDate, $entryType, $isCredit, $leaveUnits, $reference, $description, $createdBy) {
             $openingBalance = $this->currentBalance($employeeId);
             $creditUnits = $isCredit ? $leaveUnits : 0;
             $debitUnits = $isCredit ? 0 : $leaveUnits;
@@ -159,18 +199,42 @@ class EmployeeLeaveLedgerService
             return EmployeeLeaveLedger::create([
                 'employee_id' => $employeeId,
                 'entry_type' => $entryType,
-                'leave_month' => (int) $transactionDate->month,
-                'leave_year' => (int) $transactionDate->year,
-                'transaction_date' => $transactionDate->toDateString(),
+                'leave_month' => (int) $fromDate->month,
+                'leave_year' => (int) $fromDate->year,
+                'transaction_date' => $fromDate->toDateString(),
+                'from_date' => $fromDate->toDateString(),
+                'to_date' => $toDate->toDateString(),
                 'opening_balance' => $openingBalance,
                 'credit_units' => $creditUnits,
                 'debit_units' => $debitUnits,
                 'closing_balance' => $closingBalance,
                 'reference' => $reference,
-                'description' => $description ?: 'Manual leave ' . ($isCredit ? 'credit' : 'debit') . ' adjustment.',
+                'description' => $description,
                 'created_by' => $createdBy,
             ]);
         });
+    }
+
+ private function normalizeManualAdjustmentArguments($description, $createdBy, $fromDate, $toDate, array $extraDates): array
+    {
+        if ($description instanceof Carbon) {
+            $legacyTransactionDate = $description;
+            $legacyDescription = is_string($createdBy) ? $createdBy : null;
+            $legacyCreatedBy = is_numeric($fromDate) ? (int) $fromDate : null;
+            $legacyFromDate = $toDate instanceof Carbon ? $toDate : $legacyTransactionDate;
+            $legacyToDate = isset($extraDates[0]) && $extraDates[0] instanceof Carbon
+                ? $extraDates[0]
+                : $legacyFromDate;
+
+            return [$legacyDescription, $legacyCreatedBy, $legacyFromDate, $legacyToDate];
+        }
+
+        return [
+            is_string($description) ? $description : null,
+            is_numeric($createdBy) ? (int) $createdBy : null,
+            $fromDate instanceof Carbon ? $fromDate : null,
+            $toDate instanceof Carbon ? $toDate : null,
+        ];
     }
 
     public function currentBalance(int $employeeId): float
@@ -195,19 +259,67 @@ class EmployeeLeaveLedgerService
             ->whereDate('transaction_date', '>=', $startDate->toDateString())
             ->whereDate('transaction_date', '<=', $endDate->toDateString())
             ->sum('credit_units');
-        $periodManualDebits = (float) EmployeeLeaveLedger::where('employee_id', $employeeId)
-            ->where('entry_type', EmployeeLeaveLedger::TYPE_MANUAL_DEBIT)
-            ->whereDate('transaction_date', '>=', $startDate->toDateString())
-            ->whereDate('transaction_date', '<=', $endDate->toDateString())
-            ->sum('debit_units');
 
-        return $openingBalance + $periodCredits - $periodManualDebits;
+         return $openingBalance + $periodCredits;
+    }
+
+    public function manualDebitUnitsForPeriod(int $employeeId, Carbon $startDate, Carbon $endDate): float
+    {
+
+        $manualDebits = EmployeeLeaveLedger::where('employee_id', $employeeId)
+            ->whereDate(DB::raw('COALESCE(from_date, transaction_date)'), '<=', $endDate->toDateString())
+            ->whereDate(DB::raw('COALESCE(to_date, from_date, transaction_date)'), '>=', $startDate->toDateString())
+            ->get();
+
+        $units = 0.0;
+
+        foreach ($manualDebits as $manualDebit) {
+            $debitFrom = Carbon::parse($manualDebit->from_date ?: $manualDebit->transaction_date)->startOfDay();
+            $debitTo = Carbon::parse($manualDebit->to_date ?: $manualDebit->from_date ?: $manualDebit->transaction_date)->startOfDay();
+
+            $overlapStart = $debitFrom->greaterThan($startDate) ? $debitFrom : $startDate->copy()->startOfDay();
+            $overlapEnd = $debitTo->lessThan($endDate) ? $debitTo : $endDate->copy()->startOfDay();
+
+            if ($overlapEnd->lt($overlapStart)) {
+                continue;
+            }
+
+            $rangeDays = max(1, $debitFrom->diffInDays($debitTo) + 1);
+            $overlapDays = $overlapStart->diffInDays($overlapEnd) + 1;
+            $units += ((float) $manualDebit->debit_units / $rangeDays) * $overlapDays;
+        }
+
+        return round($units, 2);
+
     }
 
     public function leaveUnits(string $leaveType): float
     {
         return strtoupper($leaveType) === 'H' ? 0.5 : 1.0;
     }
+
+
+    private function manualAdjustmentDescription(?string $description, bool $isCredit, ?Carbon $fromDate, ?Carbon $toDate): string
+    {
+        $description = trim((string) $description);
+        $description = $description !== ''
+            ? $description
+            : 'Manual leave ' . ($isCredit ? 'credit' : 'debit') . ' adjustment.';
+
+        if (! $fromDate) {
+            return $description;
+        }
+
+        $toDate = $toDate ?: $fromDate->copy();
+        $periodText = $fromDate->isSameDay($toDate)
+            ? 'Date: ' . $fromDate->format('d-m-Y')
+            : 'Period: ' . $fromDate->format('d-m-Y') . ' to ' . $toDate->format('d-m-Y');
+
+        return $description . ' (' . $periodText . ')';
+    }
+
+
+
 
     private function monthlyCreditReference(int $year, int $month): string
     {

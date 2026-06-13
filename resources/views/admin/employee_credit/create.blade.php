@@ -28,12 +28,12 @@
         <div class="row g-3">
             <div class="col-md-6">
                 <label class="form-label">Employee</label>
-                <select name="employee_id" class="form-control" required>
+                <select name="employee_id" id="employee_id" class="form-control" required>
                     <option value="">-- Select Employee --</option>
                     @foreach($employees as $emp)
                         <option value="{{ $emp->employee_id }}"
                             {{ old('employee_id') == $emp->employee_id ? 'selected' : '' }}>
-                            {{ $emp->employee_name }} (ID: {{ $emp->employee_id }})
+                            {{ $emp->employee_name }} (ID: {{ $emp->member_id }})
                         </option>
                     @endforeach
                 </select>
@@ -43,6 +43,14 @@
                 <label class="form-label">Site ID</label>
                 <input type="number" name="site_id" class="form-control" value="{{ old('site_id', 0) }}" min="0">
             </div> -->
+
+             <div class="col-md-6">
+                <label class="form-label">Assigned Site</label>
+                <select name="site_id" id="site_id" class="form-control" required>
+                    <option value="">-- Select Employee First --</option>
+                </select>
+                <small class="text-muted">Only sites assigned to the selected employee are available.</small>
+            </div>
 
             <div class="col-md-3">
                 <label class="form-label">Date</label>
@@ -69,5 +77,42 @@
 </div>
 </div>
 </div>
-
 @endsection
+
+@section('scripts')
+<script>
+    const employeeSites = @json($employeeSites);
+    const oldEmployeeId = @json((string) old('employee_id'));
+    const oldSiteId = @json((string) old('site_id'));
+    const employeeSelect = document.getElementById('employee_id');
+    const siteSelect = document.getElementById('site_id');
+
+    function renderAssignedSites(employeeId, selectedSiteId = '') {
+        const sites = employeeSites[employeeId] || [];
+        siteSelect.innerHTML = '';
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = sites.length ? '-- Select Assigned Site --' : '-- No Assigned Sites --';
+        siteSelect.appendChild(placeholder);
+
+        sites.forEach((site) => {
+            const option = document.createElement('option');
+            option.value = site.site_id;
+            option.textContent = site.site_name;
+            option.selected = String(site.site_id) === String(selectedSiteId);
+            siteSelect.appendChild(option);
+        });
+    }
+
+    employeeSelect.addEventListener('change', function () {
+        renderAssignedSites(this.value);
+    });
+
+    if (oldEmployeeId) {
+        renderAssignedSites(oldEmployeeId, oldSiteId);
+    }
+</script>
+@endsection
+
+

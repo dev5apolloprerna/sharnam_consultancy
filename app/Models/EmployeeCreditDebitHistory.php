@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
+use App\Models\ConstructionSiteMaster;
+
 class EmployeeCreditDebitHistory extends Model
 {
     protected $table = 'employee_credit_debit_history';
@@ -13,6 +15,7 @@ class EmployeeCreditDebitHistory extends Model
     protected $fillable = [
         'employee_id',
         'site_id',
+        'site_name',
         'credit_balance',
         'debit_balance',
         'comment',
@@ -23,6 +26,10 @@ class EmployeeCreditDebitHistory extends Model
     public function employee()
     {
         return $this->belongsTo(EmployeeMaster::class, 'employee_id', 'employee_id');
+    }
+     public function site()
+    {
+        return $this->belongsTo(ConstructionSiteMaster::class, 'site_id', 'site_id');
     }
      public function enteredBy()
     {

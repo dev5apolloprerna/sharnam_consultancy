@@ -56,7 +56,7 @@
                             <td>{{ $rows->firstItem() + $i }}</td>
                             <td>{{ date('d-m-Y',strtotime($r->date)) }}</td>
                             <td>{{ $r->employee?->employee_name }} ({{ $r->employee?->member_id }})</td>
-                            <td>{{ $r->site_id }}</td>
+                            <td>{{ $r->site_name ?: ($r->site?->site_name ?? $r->site_id ?? '-') }}</td>
                             <td>{{ number_format($creditAmount, 2) }}</td>
                             <td>{{ number_format($debitAmount, 2) }}</td>
                             <td>{{ number_format($runningBalance, 2) }}</td>

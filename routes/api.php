@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\EmployeeLeaveManagerController;
 use App\Http\Controllers\Api\EmployeeSalaryApiController;
 use App\Http\Controllers\Api\HolidayController;
 use App\Http\Controllers\Api\EmployeeLeaveLedgerApiController;
+
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -34,9 +36,12 @@ Route::middleware('auth:api')->group(function () {
     Route::post('employee-profile/update', [EmployeeAuthController::class, 'updateProfile']);
     Route::post('employee/change-password', [EmployeePasswordController::class, 'changePassword']);
     Route::post('employee/dashboard', [DashboardController::class, 'dashboard']);
+    
     Route::match(['get', 'post'], 'employee/holidays', [HolidayController::class, 'index']);
     Route::match(['get', 'post'], 'manager/holidays', [HolidayController::class, 'index']);
     Route::post('employee/assign-vehicle-list', [EmployeeAuthController::class, 'assignedVehicleList']);
+
+
 });
 
 Route::post('employee/attendance/start', [EmployeeAttendanceController::class, 'startDay']);

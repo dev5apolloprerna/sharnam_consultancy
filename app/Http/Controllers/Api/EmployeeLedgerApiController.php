@@ -28,14 +28,15 @@ class EmployeeLedgerApiController extends Controller
 
         $employeeId = (int) $request->employee_id;
 
-        $employee = EmployeeMaster::select('employee_id', 'employee_name')
+        $employee = EmployeeMaster::select('employee_id', 'employee_name','member_id')
             ->where('employee_id', $employeeId)
             ->first();
 
-        $rows = EmployeeCreditDebitHistory::where('employee_id', $employeeId)
+        $rows = EmployeeCreditDebitHistory::with(['enteredBy', 'enteredByEmployee'])->where('employee_id', $employeeId)
             ->when($request->from, fn($q) => $q->whereDate('date', '>=', $request->from))
             ->when($request->to, fn($q) => $q->whereDate('date', '<=', $request->to))
-            ->orderBy('ledger_id', 'desc')
+            ->orderBy('date')
+            ->orderBy('ledger_id')
             ->get([
                 'ledger_id',
                 'credit_balance',
@@ -50,28 +51,33 @@ class EmployeeLedgerApiController extends Controller
         $totalCredit = 0.0;
         $totalDebit  = 0.0;
 
-        $list = $rows->map(function ($r) use (&$totalCredit, &$totalDebit) {
+        $runningBalance = 0.0;
+
+        $list = $rows->map(function ($r) use (&$totalCredit, &$totalDebit, &$runningBalance) {
+            $creditAmount = (float) ($r->credit_balance ?? 0);
             $debitAmount = (float) ($r->debit_balance ?? 0);
-            $creditAmount = $debitAmount > 0 ? 0 : (float) $r->credit_balance;
 
             $totalCredit += $creditAmount;
             $totalDebit += $debitAmount;
+            $runningBalance += $creditAmount - $debitAmount;
 
             return [
-                'ledger_id'      => $r->ledger_id,
-                'credit_amount'  => round($creditAmount, 2),
-                'debit_amount'   => round($debitAmount, 2),
-                'comment'        => $r->comment,
-                'date'           => $r->date,
-                'enter_by'       => $r->enter_by,
+                'ledger_id'       => $r->ledger_id,
+                'credit_amount'   => round($creditAmount, 2),
+                'debit_amount'    => round($debitAmount, 2),
+                'running_balance' => round($runningBalance, 2),
+                'comment'         => $r->comment,
+                'date'            => $r->date,
+                'enter_by'        => $r->enter_by,
             ];
-        })->values();
+        })->reverse()->values();
 
         return response()->json([
             'status' => true,
             'employee' => [
                 'employee_id' => $employee->employee_id,
                 'employee_name' => $employee->employee_name,
+                'member_id' => $employee->member_id,
             ],
             'summary' => [
                 'total_credit_amount' => round($totalCredit, 2),

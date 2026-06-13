@@ -18,7 +18,7 @@
                     <option value="">All</option>
                     @foreach($employees as $emp)
                         <option value="{{ $emp->employee_id }}" {{ (string)$qEmployee === (string)$emp->employee_id ? 'selected' : '' }}>
-                            {{ $emp->employee_name }} ({{ $emp->employee_id }})
+                            {{ $emp->employee_name }} ({{ $emp->member_id }})
                         </option>
                     @endforeach
                 </select>
@@ -40,7 +40,7 @@
                         <th>Site</th>
                         <th>Credit</th>
                         <th>Debit</th>
-                        <th>Running Credit Balance</th>
+                        <th>Running Balance</th>
                         <th>Comment</th>
                         <th>Enter By</th>
                     </tr>
@@ -48,21 +48,23 @@
                 <tbody>
                     @forelse($rows as $i => $r)
                         @php
+                            $creditAmount = (float) ($r->credit_balance ?? 0);
                             $debitAmount = (float) ($r->debit_balance ?? 0);
-                            $creditAmount = $debitAmount > 0 ? 0 : (float) $r->credit_balance;
+                            $runningBalance = (float) ($runningBalances[$r->ledger_id] ?? 0);
                         @endphp
                         <tr>
                             <td>{{ $rows->firstItem() + $i }}</td>
-                            <td>{{ $r->date }}</td>
-                            <td>{{ $r->employee?->employee_name }} ({{ $r->employee_id }})</td>
+                            <td>{{ date('d-m-Y',strtotime($r->date)) }}</td>
+                            <td>{{ $r->employee?->employee_name }} ({{ $r->employee?->member_id }})</td>
                             <td>{{ $r->site_id }}</td>
                             <td>{{ number_format($creditAmount, 2) }}</td>
                             <td>{{ number_format($debitAmount, 2) }}</td>
+                            <td>{{ number_format($runningBalance, 2) }}</td>
                             <td>{{ $r->comment }}</td>
-                            <td>{{ $r->enter_by }}</td>
+                            <td>{{ $r->enteredBy?->full_name ?? $r->enteredByEmployee?->employee_name ?? '-' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="text-center">No records found.</td></tr>
+                        <tr><td colspan="9" class="text-center">No records found.</td></tr>
                     @endforelse
                 </tbody>
             </table>

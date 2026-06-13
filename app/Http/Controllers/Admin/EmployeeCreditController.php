@@ -88,26 +88,36 @@ class EmployeeCreditController extends Controller
     {
         $qEmployee = $request->employee_id;
 
-        $employees = EmployeeMaster::select('employee_id', 'employee_name')
+        $employees = EmployeeMaster::select('employee_id', 'employee_name','member_id')
             ->orderBy('employee_name')
             ->get();
 
-        $ledgerQuery = EmployeeCreditDebitHistory::with('employee')
+        $ledgerQuery = EmployeeCreditDebitHistory::with(['employee', 'enteredBy', 'enteredByEmployee'])
             ->when($qEmployee, fn($qq) => $qq->where('employee_id', $qEmployee));
 
-        $totalCredit = (float) (clone $ledgerQuery)
-            ->where(function ($query) {
-                $query->whereNull('debit_balance')
-                    ->orWhere('debit_balance', '<=', 0);
-            })
-            ->sum('credit_balance');
+        $totalCredit = (float) (clone $ledgerQuery)->sum('credit_balance');
         $totalDebit = (float) (clone $ledgerQuery)->sum('debit_balance');
         $totalBalance = $totalCredit - $totalDebit;
 
+        $allRows = (clone $ledgerQuery)
+            ->orderBy('date')
+            ->orderBy('ledger_id')
+            ->get();
+
+        $runningBalance = 0.0;
+        $runningBalances = [];
+
+        foreach ($allRows as $ledgerRow) {
+            $runningBalance += (float) ($ledgerRow->credit_balance ?? 0);
+            $runningBalance -= (float) ($ledgerRow->debit_balance ?? 0);
+            $runningBalances[$ledgerRow->ledger_id] = $runningBalance;
+        }
+
         $rows = $ledgerQuery
+            ->orderByDesc('date')
             ->orderByDesc('ledger_id')
             ->paginate(20);
 
-        return view('admin.employee_credit.index', compact('rows', 'employees', 'qEmployee', 'totalCredit', 'totalDebit', 'totalBalance'));
+        return view('admin.employee_credit.index', compact('rows', 'employees', 'qEmployee', 'totalCredit', 'totalDebit', 'totalBalance', 'runningBalances'));
     }
 }

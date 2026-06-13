@@ -15,18 +15,25 @@ class EmployeeLeaveLedgerController extends Controller
     {
         $selectedEmployeeId = $request->filled('employee_id') ? (int) $request->employee_id : null;
 
-        $employees = EmployeeMaster::select('employee_id', 'employee_name')
+        $employees = EmployeeMaster::select('employee_id', 'employee_name','member_id')
             ->where('iStatus', 1)
             ->where('isDelete', 0)
             ->orderBy('employee_name')
             ->get();
 
-        $ledgerRows = EmployeeLeaveLedger::with('employee:employee_id,employee_name', 'leave:emp_leave_id,leave_date,leave_type,status')
-            ->when($selectedEmployeeId, fn ($query) => $query->where('employee_id', $selectedEmployeeId))
-            ->orderByRaw('COALESCE(from_date, transaction_date) DESC')
-            ->orderByDesc('leave_ledger_id')
-            ->limit(100)
-            ->get();
+// \DB::enableQueryLog(); // Enable query log
+
+        $ledgerRows = EmployeeLeaveLedger::with(
+        'employee:employee_id,employee_name',
+        'leave:emp_leave_id,leave_date,leave_type,status'
+    )
+    ->when($selectedEmployeeId, fn ($query) => $query->where('employee_id', $selectedEmployeeId))
+    ->orderBy('from_date', 'desc')
+    ->orderByDesc('leave_ledger_id')
+    ->limit(100)
+    ->get();
+
+// dd(\DB::getQueryLog()); // Show results of log
 
         $currentBalance = $selectedEmployeeId ? $ledgerService->currentBalance($selectedEmployeeId) : null;
 

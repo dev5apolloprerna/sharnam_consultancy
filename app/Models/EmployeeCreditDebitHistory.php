@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-
+use App\Models\User;
 class EmployeeCreditDebitHistory extends Model
 {
     protected $table = 'employee_credit_debit_history';
@@ -23,5 +23,14 @@ class EmployeeCreditDebitHistory extends Model
     public function employee()
     {
         return $this->belongsTo(EmployeeMaster::class, 'employee_id', 'employee_id');
+    }
+     public function enteredBy()
+    {
+        return $this->belongsTo(User::class, 'enter_by', 'id');
+    }
+
+    public function enteredByEmployee()
+    {
+        return $this->belongsTo(EmployeeMaster::class, 'enter_by', 'employee_id');
     }
 }

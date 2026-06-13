@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\EmployeeMaster;
 use App\Models\EmployeeCreditDebitHistory;
+use App\Models\SiteAssignEmployee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,11 +15,24 @@ class EmployeeCreditController extends Controller
     // Form page
     public function create()
     {
-        $employees = EmployeeMaster::select('employee_id', 'employee_name')
+        $employees = EmployeeMaster::with(['siteAssignments.site'])
+            ->select('employee_id', 'employee_name','member_id')
             ->orderBy('employee_name')
             ->get();
 
-        return view('admin.employee_credit.create', compact('employees'));
+        $employeeSites = $employees->mapWithKeys(function ($employee) {
+            return [
+                $employee->employee_id => $employee->siteAssignments
+                    ->filter(fn($assignment) => $assignment->site)
+                    ->map(fn($assignment) => [
+                        'site_id' => $assignment->site->site_id,
+                        'site_name' => $assignment->site->site_name,
+                    ])
+                    ->values(),
+            ];
+        });
+
+        return view('admin.employee_credit.create', compact('employees', 'employeeSites'));
     }
 
     // Save credit entry
@@ -27,7 +41,7 @@ class EmployeeCreditController extends Controller
     {
         $request->validate([
             'employee_id'   => 'required|integer|exists:employee_master,employee_id',
-            'site_id'       => 'nullable|integer|min:0',
+            'site_id'       => 'required|integer|exists:construction_site_master,site_id',
             'credit_amount' => 'nullable|numeric|min:0.01',
             'debit_amount'  => 'nullable|numeric|min:0.01',
             'comment'       => 'required|string|max:2000',
@@ -35,12 +49,27 @@ class EmployeeCreditController extends Controller
         ]);
 
         $employeeId = (int) $request->employee_id;
-        $siteId     = (int) ($request->site_id ?? 0);
+        $siteId     = (int) $request->site_id;
         //$amount     = (float) $request->credit_amount;
         $credit     = (float) ($request->credit_amount ?? 0);
         $debit      = (float) ($request->debit_amount ?? 0);
         $comment    = trim($request->comment);
         $date       = $request->date;
+
+        $siteName   = SiteAssignEmployee::where('site_emp_id', $employeeId)
+            ->where('site_id', $siteId)
+            ->where('iStatus', 1)
+            ->where('isDelete', 0)
+            ->whereHas('site')
+            ->with('site')
+            ->first()?->site?->site_name;
+
+        if (!$siteName) {
+            return back()
+                ->withInput()
+                ->withErrors(['site_id' => 'Please select a site assigned to the selected employee.']);
+        }
+
 
         if ($credit <= 0 && $debit <= 0) {
             return back()
@@ -65,6 +94,7 @@ class EmployeeCreditController extends Controller
             EmployeeCreditDebitHistory::create([
                 'employee_id'     => $employeeId,
                 'site_id'         => $siteId,
+                'site_name'       => $siteName,
                 'credit_balance'  => $credit,
                 'debit_balance'   => $debit,
                 'comment'         => $comment,
@@ -92,7 +122,7 @@ class EmployeeCreditController extends Controller
             ->orderBy('employee_name')
             ->get();
 
-        $ledgerQuery = EmployeeCreditDebitHistory::with(['employee', 'enteredBy', 'enteredByEmployee'])
+        $ledgerQuery = EmployeeCreditDebitHistory::with(['employee', 'site', 'enteredBy', 'enteredByEmployee'])
             ->when($qEmployee, fn($qq) => $qq->where('employee_id', $qEmployee));
 
         $totalCredit = (float) (clone $ledgerQuery)->sum('credit_balance');

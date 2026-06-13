@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\EmployeeMaster;
 use App\Models\EmployeeCreditDebitHistory;
+use App\Models\SiteAssignEmployee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -32,7 +33,7 @@ class EmployeeLedgerApiController extends Controller
             ->where('employee_id', $employeeId)
             ->first();
 
-        $rows = EmployeeCreditDebitHistory::with(['enteredBy', 'enteredByEmployee'])->where('employee_id', $employeeId)
+            $rows = EmployeeCreditDebitHistory::with(['site', 'enteredBy', 'enteredByEmployee'])->where('employee_id', $employeeId)
             ->when($request->from, fn($q) => $q->whereDate('date', '>=', $request->from))
             ->when($request->to, fn($q) => $q->whereDate('date', '<=', $request->to))
             ->orderBy('date')
@@ -41,6 +42,8 @@ class EmployeeLedgerApiController extends Controller
                 'ledger_id',
                 'credit_balance',
                 'debit_balance',
+                'site_id',
+                'site_name',
                 'comment',
                 'date',
                 'enter_by',
@@ -66,6 +69,8 @@ class EmployeeLedgerApiController extends Controller
                 'credit_amount'   => round($creditAmount, 2),
                 'debit_amount'    => round($debitAmount, 2),
                 'running_balance' => round($runningBalance, 2),
+                'site_id'         => $r->site_id,
+                'site_name'       => $r->site_name ?: ($r->site?->site_name),
                 'comment'         => $r->comment,
                 'date'            => $r->date,
                 'enter_by'        => $r->enter_by,
@@ -103,12 +108,28 @@ class EmployeeLedgerApiController extends Controller
             'employee_id'  => 'required|integer|exists:employee_master,employee_id',
             'debit_amount' => 'required|numeric|min:0.01',
             'comment'      => 'required|string|max:2000',
+            'site_id'      => 'required|integer|exists:construction_site_master,site_id',
             'date'         => 'nullable|date',
         ]);
 
         $employeeId = (int) $request->employee_id;
         $debit      = (float) $request->debit_amount;
         $comment    = trim($request->comment);
+         $siteId     = (int) $request->site_id;
+        $siteName   = SiteAssignEmployee::where('site_emp_id', $employeeId)
+            ->where('site_id', $siteId)
+            ->where('iStatus', 1)
+            ->where('isDelete', 0)
+            ->whereHas('site')
+            ->with('site')
+            ->first()?->site?->site_name;
+
+        if (!$siteName) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Please select a site assigned to the selected employee.',
+            ], 422);
+        }
         $date       = $request->date ?? date('Y-m-d');
 
         $enterBy    = Auth::id();
@@ -120,6 +141,8 @@ class EmployeeLedgerApiController extends Controller
             // NOTE: your debit_balance is INT in schema -> rounding/casting
             $row = EmployeeCreditDebitHistory::create([
                 'employee_id'    => $employeeId,
+                'site_id'        => $siteId,
+                'site_name'      => $siteName,
                 'credit_balance' => 0,
                 'debit_balance'  => $debit,
                 'comment'        => $comment,
@@ -134,6 +157,8 @@ class EmployeeLedgerApiController extends Controller
                 'message' => 'Expense (debit) saved successfully.',
                 'ledger_id' => $row->ledger_id,
                 'employee_id' => $employeeId,
+                'site_id' => $siteId,
+                'site_name' => $siteName,
                 'credit_amount' => 0,
                 'debit_amount' => round($debit, 2),
 /*                'old_balance' => round($lastBalance, 2),

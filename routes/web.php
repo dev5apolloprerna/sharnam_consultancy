@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\EmployeeLocationHistoryController;
 use App\Http\Controllers\Admin\HolidayMasterController;
 use App\Http\Controllers\Admin\EmployeeLeaveLedgerController;
 
+
 Route::fallback(function () {
      return view('errors.404');
 });
@@ -152,12 +153,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
 });
 
 
+
 Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
     Route::get('salary-process', [SalaryProcessController::class, 'index'])->name('salary-process.index');
     Route::post('salary-process', [SalaryProcessController::class, 'store'])->name('salary-process.store');
     Route::get('salary-process/{salaryId}/slip', [SalaryProcessController::class, 'downloadSlip'])->name('salary-process.slip');
 });
-
 
 Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
     Route::get('holiday-master', [HolidayMasterController::class, 'index'])->name('holiday-master.index');
@@ -166,7 +167,23 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::delete('holiday-master/{holidayId}', [HolidayMasterController::class, 'destroy'])->name('holiday-master.delete');
 });
 
+
+
 Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
     Route::get('employee-location-history', [EmployeeLocationHistoryController::class, 'index'])
         ->name('employee-location-history.index');
+});
+
+
+Route::get('/clear-cache', function () {
+    Artisan::call('config:clear');
+    Artisan::call('cache:clear');
+    Artisan::call('view:clear');
+
+    return 'Cache cleared';
+});
+
+
+Route::get('/print-public-path', function () {
+    return base_path();
 });

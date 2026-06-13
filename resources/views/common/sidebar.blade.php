@@ -45,7 +45,7 @@
                             Employee Leave
                           </a>
                         </li>
-                         <li class="nav-item">
+                        <li class="nav-item">
                           <a href="{{ route('admin.employee-leave-ledger.index') }}"
                              class="nav-link {{ request()->routeIs('admin.employee-leave-ledger.*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-balance-scale"></i>
@@ -62,7 +62,7 @@
                                 <i class="nav-icon fas fa-map-marker-alt"></i>Employee Location History
                             </a>
                         </li>
-
+                        
                         <li class="nav-item">
                             <a href="{{ route('admin.salary-process.index') }}" class="nav-link {{ request()->is('admin/salary-process*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-money-bill-wave"></i>Salary Process

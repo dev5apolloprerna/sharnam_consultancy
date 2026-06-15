@@ -50,9 +50,15 @@ class EmployeeLeaveLedgerApiController extends Controller
             'description' => 'nullable|string|max:500',
         ]);
 
-        $fromDate = $request->filled('from_date') ? Carbon::parse($validated['from_date'])->startOfDay() : null;
-        $toDate = $request->filled('to_date') ? Carbon::parse($validated['to_date'])->startOfDay() : null;
+        $hasFromDate = $request->filled('from_date');
+        $hasToDate = $request->filled('to_date');
+        $fromDate = $hasFromDate ? Carbon::parse($validated['from_date'])->startOfDay() : null;
+        $toDate = $hasToDate ? Carbon::parse($validated['to_date'])->startOfDay() : null;
+        $hasDateRange = $hasFromDate && $hasToDate;
 
+        $leaveUnits = $hasDateRange
+            ? $fromDate->diffInDays($toDate) + 1
+            : (float) ($validated['leave_units'] ?? 0);
         if ($fromDate && ! $toDate) {
             $toDate = $fromDate->copy();
         }
@@ -60,10 +66,6 @@ class EmployeeLeaveLedgerApiController extends Controller
         if (! $fromDate && $toDate) {
             $fromDate = $toDate->copy();
         }
-
-        $leaveUnits = $fromDate && $toDate
-            ? $fromDate->diffInDays($toDate) + 1
-            : (float) ($validated['leave_units'] ?? 0);
 
         if ($leaveUnits < 0.5 || $leaveUnits > 365) {
             return response()->json([

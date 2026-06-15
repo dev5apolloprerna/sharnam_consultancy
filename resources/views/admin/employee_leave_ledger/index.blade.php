@@ -127,7 +127,7 @@
                         <option value="">All Employees</option>
                         @foreach($employees as $employee)
                             <option value="{{ $employee->employee_id }}" {{ (int) $selectedEmployeeId === (int) $employee->employee_id ? 'selected' : '' }}>
-                                {{ $employee->employee_name }}
+                                {{ $employee->employee_name }} ( {{ $employee->member_id }})
                             </option>
                         @endforeach
                     </select>
@@ -153,7 +153,9 @@
                         @forelse($ledgerRows as $index => $row)
                             <tr>
                                 <td>{{ $index + 1 }}</td>
-                                <td>{{ $row->employee->employee_name ?? '-' }}</td>
+                                <td>{{ $row->employee->employee_name ?? '-' }}
+                                    ({{ $row->employee->member_id ?? '-' }})
+                                </td>
                                 <td>
                                     @php
                                         $fromDate = $row->from_date ?: $row->transaction_date;
@@ -192,7 +194,10 @@
         const leaveUnitsInput = document.getElementById('manual_leave_units');
 
         function updateLeaveUnitsFromDateRange() {
-            if (!fromDateInput.value || !toDateInput.value) {
+            const hasDateRange = Boolean(fromDateInput.value && toDateInput.value);
+            leaveUnitsInput.disabled = hasDateRange;
+
+            if (!hasDateRange) {
                 return;
             }
 

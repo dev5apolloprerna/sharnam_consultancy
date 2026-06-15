@@ -15,6 +15,8 @@ use App\Models\EmployeeMaster;
 use App\Models\EmployeeAttendance;
 use App\Models\HolidayMaster;
 use App\Models\VehicleMaster;
+use App\Models\SiteAssignEmployee;
+
 class EmployeeAuthController extends Controller
 {
    public function login(Request $request)
@@ -78,6 +80,7 @@ class EmployeeAuthController extends Controller
 
         $token = JWTAuth::fromUser($employee);
         $holidays = $this->upcomingHolidays();
+        $roleFlags = $this->employeeRoleFlags($employee->employee_id);
 
         return response()->json([
             'status' => true,
@@ -86,6 +89,8 @@ class EmployeeAuthController extends Controller
             'isWorkStart' => $isWorkStart,
             'isWorkEnd' => $isWorkEnd,
             'customer' => $employee,
+            'is_employee' => $roleFlags['is_employee'],
+            'is_manager' => $roleFlags['is_manager'],
             /*'holidays' => $holidays,
             'holiday_count' => count($holidays),*/
              'profile_image_url' => !empty($employee->profile_image)
@@ -214,6 +219,19 @@ class EmployeeAuthController extends Controller
             ->values()
             ->toArray();
     }
+     private function employeeRoleFlags(int $employeeId): array
+    {
+        $isManager = SiteAssignEmployee::where('site_emp_id', $employeeId)
+            ->where('is_site_manager', 1)
+            ->where('iStatus', 1)
+            ->where('isDelete', 0)
+            ->exists();
+
+        return [
+            'is_employee' => $isManager ? 0 : 1,
+            'is_manager' => $isManager ? 1 : 0,
+        ];
+    }
     public function profile(Request $request)
     {
         $employee = auth()->guard('api')->user();
@@ -224,7 +242,8 @@ class EmployeeAuthController extends Controller
                 'message' => 'Unauthorised'
             ], 401);
         }
-    
+        $roleFlags = $this->employeeRoleFlags($employee->employee_id);
+
         return response()->json([
             'status' => true,
             'message' => 'Employee profile fetched successfully',
@@ -233,6 +252,8 @@ class EmployeeAuthController extends Controller
                 'employee_name'   => $employee->employee_name,
                 'employee_phone' => $employee->employee_phone,
                 'employee_email'  => $employee->employee_email,
+                                'is_employee'    => $roleFlags['is_employee'],
+                'is_manager'     => $roleFlags['is_manager'],
                  'profile_image_url' => !empty($employee->profile_image)
                 ? asset('/profile/' . $employee->profile_image)
                 : null,

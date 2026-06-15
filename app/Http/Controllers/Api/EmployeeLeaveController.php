@@ -37,7 +37,7 @@ class EmployeeLeaveController extends Controller
     }
 
     // POST /api/employee/leaves
-    // body: { employee_id, leave_date, leave_type(F/H), comment, site_id(optional) }
+    // body: { employee_id, leave_date, leave_type(F/H; A accepted as full-day alias), comment, site_id(optional) }
     public function store(Request $request)
     {
         try {
@@ -59,12 +59,13 @@ class EmployeeLeaveController extends Controller
         $leaveDate = Carbon::parse($request->leave_date)->toDateString();
         $employeeId = (int) $request->employee_id;
         $leaveType = $this->normalizeLeaveType((string) $request->leave_type);
+        $attendanceStatus = $this->attendanceStatusForLeaveType($leaveType);
 
         // If you don't have employee->site mapping, require site_id OR default it to 0
         $siteId = $request->filled('site_id') ? (int) $request->site_id : 0;
 
         // NOTE: MyISAM doesn't support transactions; still safe logically, but best to use InnoDB if possible.
-        return DB::transaction(function () use ($employeeId, $leaveDate, $siteId, $request, $leaveType) {
+        return DB::transaction(function () use ($employeeId, $leaveDate, $siteId, $request, $leaveType, $attendanceStatus) {
 
             // Prevent duplicate leave same date
             $already = EmployeeLeaveMaster::where('employee_id', $employeeId)
@@ -105,10 +106,10 @@ class EmployeeLeaveController extends Controller
             $payload = [
                 'employee_id'      => $employeeId,
                 'site_id'          => $siteId,
-                'status'           => $leaveType,
+                'status'           => $attendanceStatus,
                 'start_date_time'  => Carbon::parse($leaveDate)->startOfDay(), // 00:00:00
                 'end_date_time'    => Carbon::parse($leaveDate)->startOfDay(),
-                'comments'         => 'Auto leave (' . $leaveType . '): ' . $this->leaveTypeLabel($leaveType),
+                'comments'         => 'Auto leave (' . $attendanceStatus . '): ' . $this->leaveTypeLabel($leaveType),
                 'iStatus'          => 1,
                 'isDelete'         => 0,
                 'updated_at'       => now(),
@@ -175,9 +176,11 @@ class EmployeeLeaveController extends Controller
 
         $newDate = Carbon::parse($request->leave_date)->toDateString();
         $leaveType = $this->normalizeLeaveType((string) $request->leave_type);
+        $attendanceStatus = $this->attendanceStatusForLeaveType($leaveType);
         $siteId = $request->filled('site_id') ? (int) $request->site_id : 0;
 
-        return DB::transaction(function () use ($leave, $newDate, $siteId, $request, $leaveType) {
+        return DB::transaction(function () use ($leave, $newDate, $siteId, $request, $leaveType, $attendanceStatus) 
+        {
 
             $oldDate = Carbon::parse($leave->leave_date)->toDateString();
 
@@ -211,10 +214,10 @@ class EmployeeLeaveController extends Controller
             $payload = [
                 'employee_id'      => $leave->employee_id,
                 'site_id'          => $siteId,
-                'status'           => $leaveType,
+                'status'           => $attendanceStatus,
                 'start_date_time'  => Carbon::parse($newDate)->startOfDay(),
                 'end_date_time'    => Carbon::parse($newDate)->startOfDay(),
-                'comments'         => 'Auto leave (' . $leaveType . '): ' . $this->leaveTypeLabel($leaveType),
+                'comments'         => 'Auto leave (' . $attendanceStatus . '): ' . $this->leaveTypeLabel($leaveType),
                 'iStatus'          => 1,
                 'isDelete'         => 0,
                 'updated_at'       => now(),
@@ -337,7 +340,12 @@ private function normalizeLeaveType(string $leaveType): string
     {
         $leaveType = strtoupper($leaveType);
 
-        return $leaveType === 'F' ? 'A' : $leaveType;
+       return $leaveType === 'A' ? 'F' : $leaveType;
+    }
+
+    private function attendanceStatusForLeaveType(string $leaveType): string
+    {
+        return strtoupper($leaveType) === 'H' ? 'H' : 'A';
     }
 
     private function leaveTypeLabel(string $leaveType): string

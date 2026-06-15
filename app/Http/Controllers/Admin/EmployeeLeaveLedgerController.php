@@ -24,14 +24,14 @@ class EmployeeLeaveLedgerController extends Controller
 // \DB::enableQueryLog(); // Enable query log
 
         $ledgerRows = EmployeeLeaveLedger::with(
-        'employee:employee_id,employee_name',
+        'employee:employee_id,employee_name,member_id',
         'leave:emp_leave_id,leave_date,leave_type,status'
-    )
-    ->when($selectedEmployeeId, fn ($query) => $query->where('employee_id', $selectedEmployeeId))
-    ->orderBy('from_date', 'desc')
-    ->orderByDesc('leave_ledger_id')
-    ->limit(100)
-    ->get();
+            )
+            ->when($selectedEmployeeId, fn ($query) => $query->where('employee_id', $selectedEmployeeId))
+            ->orderBy('from_date', 'desc')
+            ->orderByDesc('leave_ledger_id')
+            ->limit(100)
+            ->get();
 
 // dd(\DB::getQueryLog()); // Show results of log
 
@@ -56,29 +56,24 @@ class EmployeeLeaveLedgerController extends Controller
             'description' => 'nullable|string|max:500',
         ]);
 
-        $fromDate = $request->filled('from_date') ? Carbon::parse($validated['from_date'])->startOfDay() : null;
-        $toDate = $request->filled('to_date') ? Carbon::parse($validated['to_date'])->startOfDay() : null;
+        $hasFromDate = $request->filled('from_date');
+        $hasToDate = $request->filled('to_date');
+        $fromDate = $hasFromDate ? Carbon::parse($validated['from_date'])->startOfDay() : null;
+        $toDate = $hasToDate ? Carbon::parse($validated['to_date'])->startOfDay() : null;
+        $hasDateRange = $hasFromDate && $hasToDate;
 
-        if ($fromDate && ! $toDate) {
-            $toDate = $fromDate->copy();
-        }
-
-        if (! $fromDate && $toDate) {
-            $fromDate = $toDate->copy();
-        }        $fromDate = $request->filled('from_date') ? Carbon::parse($validated['from_date'])->startOfDay() : null;
-        $toDate = $request->filled('to_date') ? Carbon::parse($validated['to_date'])->startOfDay() : null;
-
-        if ($fromDate && ! $toDate) {
-            $toDate = $fromDate->copy();
-        }
-
-        if (! $fromDate && $toDate) {
-            $fromDate = $toDate->copy();
-        }
-
-        $leaveUnits = $fromDate && $toDate
+        $leaveUnits = $hasDateRange
             ? $fromDate->diffInDays($toDate) + 1
             : (float) ($validated['leave_units'] ?? 0);
+
+
+        if ($fromDate && ! $toDate) {
+            $toDate = $fromDate->copy();
+        }
+
+        if (! $fromDate && $toDate) {
+            $fromDate = $toDate->copy();
+        }
 
         if ($leaveUnits < 0.5 || $leaveUnits > 365) {
             return redirect()

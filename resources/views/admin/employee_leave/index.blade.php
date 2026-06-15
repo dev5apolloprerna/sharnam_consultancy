@@ -79,7 +79,7 @@
                 @forelse($leaves as $i => $r)
                     <tr>
                         <td>{{ $i+1 }}</td>
-                        <td>{{ $r->employee->employee_name ?? '-' }} </td>
+                        <td>{{ $r->employee->employee_name ?? '-' }} ({{ $r->employee->member_id ?? '-' }})</td>
                         <td>{{ \Carbon\Carbon::parse($r->leave_date)->format('d-m-Y') }}</td>
                         <td>
                             {{ in_array($r->leave_type, ['A', 'F'], true) ? 'Full Day' : 'Half Day' }}

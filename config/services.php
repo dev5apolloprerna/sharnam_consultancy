@@ -31,8 +31,8 @@ return [
     ],
 
     'firebase' => [
-    'credentials' => env('FIREBASE_CREDENTIALS', storage_path('app/firebase/firebase-adminsdk.json')),
-    ],
+    'credentials' => env('FIREBASE_CREDENTIALS', 'storage/app/firebase/firebase-adminsdk.json'),
+],
 
 
 

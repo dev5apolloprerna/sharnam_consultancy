@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Validator;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Services\FirebaseNotificationService;
 
 class EmployeeLedgerApiController extends Controller
 {
@@ -47,8 +48,14 @@ class EmployeeLedgerApiController extends Controller
                 'comment',
                 'date',
                 'enter_by',
-            ]);
 
+                // approval columns
+                'status',
+                'reason',
+                'approved_by',
+                'approved_at',
+            ]);
+            
         
 
         $totalCredit = 0.0;
@@ -56,27 +63,41 @@ class EmployeeLedgerApiController extends Controller
 
         $runningBalance = 0.0;
 
-        $list = $rows->map(function ($r) use (&$totalCredit, &$totalDebit, &$runningBalance) {
-            $creditAmount = (float) ($r->credit_balance ?? 0);
-            $debitAmount = (float) ($r->debit_balance ?? 0);
+       $list = $rows->map(function ($r) use (&$totalCredit, &$totalDebit, &$runningBalance) {
+        $creditAmount = (float) ($r->credit_balance ?? 0);
+        $debitAmount  = (float) ($r->debit_balance ?? 0);
 
-            $totalCredit += $creditAmount;
-            $totalDebit += $debitAmount;
-            $runningBalance += $creditAmount - $debitAmount;
+        /*
+         * If expense is pending/rejected, do not count it in balance.
+         * Only accepted expense will affect total debit and running balance.
+         */
+        if (($r->status ?? 'accepted') !== 'accepted') {
+            $debitAmount = 0;
+        }
 
-            return [
-                'ledger_id'       => $r->ledger_id,
-                'credit_amount'   => round($creditAmount, 2),
-                'debit_amount'    => round($debitAmount, 2),
-                'running_balance' => round($runningBalance, 2),
-                'site_id'         => $r->site_id,
-                'site_name'       => $r->site_name ?: ($r->site?->site_name),
-                'comment'         => $r->comment,
-                'date'            => $r->date,
-                'enter_by'        => $r->enter_by,
-            ];
-        })->reverse()->values();
+        $totalCredit += $creditAmount;
+        $totalDebit += $debitAmount;
+        $runningBalance += $creditAmount - $debitAmount;
 
+        return [
+            'ledger_id'       => $r->ledger_id,
+            'credit_amount'   => round($creditAmount, 2),
+            'debit_amount'    => round($debitAmount, 2),
+            'running_balance' => round($runningBalance, 2),
+            'site_id'         => $r->site_id,
+            'site_name'       => $r->site_name ?: ($r->site?->site_name),
+            'comment'         => $r->comment,
+            'date'            => $r->date,
+            'enter_by'        => $r->enter_by,
+
+            // approval fields
+            'status'          => $r->status,
+            'reason'          => $r->reason,
+            'approved_by'     => $r->approved_by,
+            'approved_at'     => $r->approved_at,
+        ];
+    })->reverse()->values();
+       
         return response()->json([
             'status' => true,
             'employee' => [
@@ -110,6 +131,7 @@ class EmployeeLedgerApiController extends Controller
             'comment'      => 'required|string|max:2000',
             'site_id'      => 'required|integer|exists:construction_site_master,site_id',
             'date'         => 'nullable|date',
+            'status' => 'pending',
         ]);
 
         $employeeId = (int) $request->employee_id;
@@ -150,11 +172,50 @@ class EmployeeLedgerApiController extends Controller
                 'enter_by'       => $enterBy,
             ]);
 
+            $employee = EmployeeMaster::find($employeeId);
+            $managers = EmployeeMaster::query()
+                ->join('site_assign_employees', 'site_assign_employees.site_emp_id', '=', 'employee_master.employee_id')
+                ->where('site_assign_employees.site_id', $siteId)
+                ->where('site_assign_employees.is_site_manager', 1)
+                ->where('site_assign_employees.iStatus', 1)
+                ->where('site_assign_employees.isDelete', 0)
+                ->where('employee_master.iStatus', 1)
+                ->where('employee_master.isDelete', 0)
+                ->get(['employee_master.employee_id', 'employee_master.employee_name', 'employee_master.device_token']);
+
+                $title = 'New Expense Request';
+                $message = ($employee->employee_name ?? 'Employee') . ' added expense request of ₹' . number_format($debit, 2) . '.';
+
+                foreach ($managers as $manager) {
+                    DB::table('employee_notifications')->insert([
+                        'employee_id' => $manager->employee_id,
+                        'sender_employee_id' => $employeeId,
+                        'type' => 'expense_request',
+                        'title' => $title,
+                        'message' => $message,
+                        'reference_table' => 'employee_credit_debit_history',
+                        'reference_id' => $row->ledger_id,
+                        'payload' => json_encode(['ledger_id' => $row->ledger_id, 'site_id' => $siteId]),
+                        'is_read' => 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                $firebase->sendToTokens($managers->pluck('device_token')->toArray(), $title, $message, [
+                    'type' => 'expense_request',
+                    'ledger_id' => $row->ledger_id,
+                    'site_id' => $siteId,
+                ]);
+
+
+
             DB::commit();
 
             return response()->json([
                 'status' => true,
-                'message' => 'Expense (debit) saved successfully.',
+                'message' => 'Expense request sent to manager for approval.',
+                'status_text' => 'pending',
                 'ledger_id' => $row->ledger_id,
                 'employee_id' => $employeeId,
                 'site_id' => $siteId,

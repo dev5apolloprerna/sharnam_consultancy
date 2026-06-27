@@ -2,19 +2,16 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class SiteAssignEmployee extends Model
 {
-    use HasFactory;
-
     protected $table = 'site_assign_employees';
     protected $primaryKey = 'assign_id';
+
     public $timestamps = false;
 
     protected $fillable = [
-        'assign_id',
         'site_id',
         'site_emp_id',
         'is_site_manager',
@@ -22,14 +19,31 @@ class SiteAssignEmployee extends Model
         'isDelete',
     ];
 
+    protected $casts = [
+        'site_id' => 'integer',
+        'site_emp_id' => 'integer',
+        'is_site_manager' => 'integer',
+        'iStatus' => 'integer',
+        'isDelete' => 'integer',
+    ];
+
     public function employee()
     {
-        return $this->belongsTo(EmployeeMaster::class, 'site_emp_id','employee_id')->where('isDelete', 0);
-    }
-     public function site()
-    {
-        return $this->belongsTo(ConstructionSiteMaster::class, 'site_id', 'site_id')
-            ->where('isDelete', 0);
+        return $this->belongsTo(EmployeeMaster::class, 'site_emp_id', 'employee_id');
     }
 
+    public function site()
+    {
+        return $this->belongsTo(ConstructionSiteMaster::class, 'site_id', 'site_id');
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('iStatus', 1)->where('isDelete', 0);
+    }
+
+    public function scopeManagers($query)
+    {
+        return $query->active()->where('is_site_manager', 1);
+    }
 }

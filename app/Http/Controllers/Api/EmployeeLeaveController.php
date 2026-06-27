@@ -9,6 +9,10 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Services\FirebaseNotificationService;
+use App\Models\SiteAssignEmployee;
+use App\Models\EmployeeMaster;
+
 
 class EmployeeLeaveController extends Controller
 {
@@ -38,99 +42,116 @@ class EmployeeLeaveController extends Controller
 
     // POST /api/employee/leaves
     // body: { employee_id, leave_date, leave_type(F/H; A accepted as full-day alias), comment, site_id(optional) }
-    public function store(Request $request)
-    {
-        try {
-            $request->validate([
-                'employee_id' => 'required|exists:employee_master,employee_id',
-                'leave_date'  => 'required|date',
-                'leave_type'  => 'required|in:A,H,F',
-                'comment'     => 'required|string',
-                'site_id'     => 'nullable|integer', // optional, fallback below
-            ]);
-        } catch (ValidationException $e) {
+   public function store(Request $request, FirebaseNotificationService $firebase)
+{
+    try {
+        $request->validate([
+            'employee_id' => 'required|exists:employee_master,employee_id',
+            'leave_date'  => 'required|date',
+            'leave_type'  => 'required|in:A,H,F',
+            'comment'     => 'required|string',
+            'site_id'     => 'required|integer|exists:construction_site_master,site_id',
+        ]);
+    } catch (ValidationException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Validation failed',
+            'errors'  => $e->errors()
+        ], 422);
+    }
+
+    $leaveDate = Carbon::parse($request->leave_date)->toDateString();
+    $employeeId = (int) $request->employee_id;
+    $siteId = (int) $request->site_id;
+    $leaveType = $this->normalizeLeaveType((string) $request->leave_type);
+
+    return DB::transaction(function () use ($employeeId, $leaveDate, $siteId, $request, $leaveType, $firebase) {
+        $assigned = SiteAssignEmployee::where('site_emp_id', $employeeId)
+            ->where('site_id', $siteId)
+            ->where('iStatus', 1)
+            ->where('isDelete', 0)
+            ->exists();
+
+        if (!$assigned) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed',
-                'errors'  => $e->errors()
+                'message' => 'Please select a site assigned to this employee.',
             ], 422);
         }
 
-        $leaveDate = Carbon::parse($request->leave_date)->toDateString();
-        $employeeId = (int) $request->employee_id;
-        $leaveType = $this->normalizeLeaveType((string) $request->leave_type);
-        $attendanceStatus = $this->attendanceStatusForLeaveType($leaveType);
+        $already = EmployeeLeaveMaster::where('employee_id', $employeeId)
+            ->whereDate('leave_date', $leaveDate)
+            ->where('isDelete', 0)
+            ->first();
 
-        // If you don't have employee->site mapping, require site_id OR default it to 0
-        $siteId = $request->filled('site_id') ? (int) $request->site_id : 0;
-
-        // NOTE: MyISAM doesn't support transactions; still safe logically, but best to use InnoDB if possible.
-        return DB::transaction(function () use ($employeeId, $leaveDate, $siteId, $request, $leaveType, $attendanceStatus) {
-
-            // Prevent duplicate leave same date
-            $already = EmployeeLeaveMaster::where('employee_id', $employeeId)
-                ->whereDate('leave_date', $leaveDate)
-                ->where('isDelete', 0)
-                ->first();
-
-            if ($already) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Leave already exists for this date.'
-                ], 409);
-            }
-
-            $leave = EmployeeLeaveMaster::create([
-                'employee_id' => $employeeId,
-                'leave_date'  => $leaveDate,
-                'leave_type'  => $leaveType,
-                'comment'     => $request->comment,
-                'iStatus'     => 1,
-                'isDelete'    => 0,
-                'created_at'  => now(),
-                'updated_at'  => now(),
-            ]);
-
-            /**
-             * AUTO ATTENDANCE:
-             * Requirement: if employee is on leave => attendance status "A" automatically.
-             * We will insert/update attendance record for that date with status "A".
-             *
-             * (Optional idea: for half day you could use 'H' or 'L', but you asked A)
-             */
-            $attendance = EmployeeAttendance::where('employee_id', $employeeId)
-                ->whereDate('start_date_time', $leaveDate)
-                ->where('isDelete', 0)
-                ->first();
-
-            $payload = [
-                'employee_id'      => $employeeId,
-                'site_id'          => $siteId,
-                'status'           => $attendanceStatus,
-                'start_date_time'  => Carbon::parse($leaveDate)->startOfDay(), // 00:00:00
-                'end_date_time'    => Carbon::parse($leaveDate)->startOfDay(),
-                'comments'         => 'Auto leave (' . $attendanceStatus . '): ' . $this->leaveTypeLabel($leaveType),
-                'iStatus'          => 1,
-                'isDelete'         => 0,
-                'updated_at'       => now(),
-            ];
-
-            if ($attendance) {
-                // If someone already punched P for that date, you can block leave OR override.
-                // Here we override with A for full-day leave or H for half-day leave.
-                $attendance->update($payload);
-            } else {
-                $payload['created_at'] = now();
-                EmployeeAttendance::create($payload);
-            }
-
+        if ($already) {
             return response()->json([
-                'success' => true,
-                'message' => 'Leave created and attendance marked automatically.',
-                'data'    => $leave
+                'success' => false,
+                'message' => 'Leave already exists for this date.'
+            ], 409);
+        }
+
+        $leave = EmployeeLeaveMaster::create([
+            'employee_id' => $employeeId,
+            'site_id'     => $siteId,
+            'leave_date'  => $leaveDate,
+            'leave_type'  => $leaveType,
+            'comment'     => $request->comment,
+            'status'      => 'pending',
+            'iStatus'     => 1,
+            'isDelete'    => 0,
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ]);
+
+        $employee = EmployeeMaster::find($employeeId);
+        $managers = $this->siteManagers($siteId);
+
+        $title = 'New Leave Request';
+        $message = ($employee->employee_name ?? 'Employee') . ' added leave request for ' . Carbon::parse($leaveDate)->format('d-m-Y') . '.';
+
+        foreach ($managers as $manager) {
+            DB::table('employee_notifications')->insert([
+                'employee_id' => $manager->employee_id,
+                'sender_employee_id' => $employeeId,
+                'type' => 'leave_request',
+                'title' => $title,
+                'message' => $message,
+                'reference_table' => 'employee_leave_master',
+                'reference_id' => $leave->emp_leave_id,
+                'payload' => json_encode(['emp_leave_id' => $leave->emp_leave_id, 'site_id' => $siteId]),
+                'is_read' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
-        });
-    }
+        }
+
+        $firebase->sendToTokens($managers->pluck('device_token')->toArray(), $title, $message, [
+            'type' => 'leave_request',
+            'emp_leave_id' => $leave->emp_leave_id,
+            'site_id' => $siteId,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Leave request sent to manager for approval.',
+            'data'    => $leave
+        ], 201);
+    });
+}
+private function siteManagers(int $siteId)
+{
+    return EmployeeMaster::query()
+        ->join('site_assign_employees', 'site_assign_employees.site_emp_id', '=', 'employee_master.employee_id')
+        ->where('site_assign_employees.site_id', $siteId)
+        ->where('site_assign_employees.is_site_manager', 1)
+        ->where('site_assign_employees.iStatus', 1)
+        ->where('site_assign_employees.isDelete', 0)
+        ->where('employee_master.iStatus', 1)
+        ->where('employee_master.isDelete', 0)
+        ->get(['employee_master.employee_id', 'employee_master.employee_name', 'employee_master.device_token']);
+}
+
 
     // GET /api/employee/leaves/{id}
     public function show(Request $request)
@@ -276,21 +297,29 @@ class EmployeeLeaveController extends Controller
     
         // list with employee name (adjust table/columns if different)
         $data = $base
-            ->leftJoin('employee_master', 'employee_master.employee_id', '=', 'employee_leave_master.employee_id')
-            ->orderBy('employee_leave_master.leave_date', 'desc')
-            ->orderBy('employee_leave_master.emp_leave_id', 'desc')
-            ->get([
-                'employee_leave_master.emp_leave_id',
-                'employee_leave_master.employee_id',
-                'employee_master.employee_name', // change if your column name is different
-                'employee_leave_master.leave_date',
-                'employee_leave_master.leave_type',
-                'employee_leave_master.comment',
-                'employee_leave_master.status',
-                'employee_leave_master.reason',
-                'employee_leave_master.created_at',
-                'employee_leave_master.updated_at',
-            ]);
+        ->leftJoin('employee_master', 'employee_master.employee_id', '=', 'employee_leave_master.employee_id')
+        ->leftJoin('construction_site_master', 'construction_site_master.site_id', '=', 'employee_leave_master.site_id')
+        ->orderBy('employee_leave_master.leave_date', 'desc')
+        ->orderBy('employee_leave_master.emp_leave_id', 'desc')
+        ->get([
+            'employee_leave_master.emp_leave_id',
+            'employee_leave_master.employee_id',
+            'employee_master.employee_name',
+
+            // added site fields
+            'employee_leave_master.site_id',
+            'construction_site_master.site_name',
+
+            'employee_leave_master.leave_date',
+            'employee_leave_master.leave_type',
+            'employee_leave_master.comment',
+            'employee_leave_master.status',
+            'employee_leave_master.reason',
+            'employee_leave_master.approved_by',
+            'employee_leave_master.approved_at',
+            'employee_leave_master.created_at',
+            'employee_leave_master.updated_at',
+        ]);
     
         return response()->json([
             'success' => true,

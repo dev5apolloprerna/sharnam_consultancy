@@ -5,6 +5,10 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Firebase\Messaging\Notification;
+use Kreait\Firebase\Factory;
+
 class FirebaseNotificationService
 {
     protected ?string $projectId = null;
@@ -13,118 +17,155 @@ class FirebaseNotificationService
 
     public function __construct()
     {
-
-        
         $configuredPath = config('services.firebase.credentials')
             ?: env('FIREBASE_CREDENTIALS')
-            ?: storage_path('app/firebase/firebase-adminsdk.json');
+            ?: 'storage/app/firebase/firebase-adminsdk.json';
 
         $this->credentialsPath = $this->resolveCredentialsPath($configuredPath);
+
+        Log::info('Firebase credentials path check', [
+            'configured_path' => $configuredPath,
+            'resolved_path' => $this->credentialsPath,
+            'exists' => file_exists($this->credentialsPath),
+            'is_readable' => is_readable($this->credentialsPath),
+        ]);
 
         if (!file_exists($this->credentialsPath)) {
             Log::error('Firebase credentials file not found', [
                 'path' => $this->credentialsPath,
             ]);
-
             return;
         }
 
-        $this->credentials = json_decode(file_get_contents($this->credentialsPath), true);
-
-        if (!$this->credentials || empty($this->credentials['project_id'])) {
-            Log::error('Invalid Firebase credentials JSON', [
+        if (!is_readable($this->credentialsPath)) {
+            Log::error('Firebase credentials file not readable', [
                 'path' => $this->credentialsPath,
             ]);
-
             return;
         }
 
-        $this->projectId = $this->credentials['project_id'];
+        $fileContents = file_get_contents($this->credentialsPath);
+
+        if ($fileContents === false || trim($fileContents) === '') {
+            Log::error('Firebase credentials file empty or unreadable', [
+                'path' => $this->credentialsPath,
+            ]);
+            return;
+        }
+
+        $credentials = json_decode($fileContents, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            Log::error('Firebase credentials JSON decode failed', [
+                'path' => $this->credentialsPath,
+                'error' => json_last_error_msg(),
+                'first_100_chars' => substr($fileContents, 0, 100),
+            ]);
+            return;
+        }
+
+        if (
+            empty($credentials['project_id']) ||
+            empty($credentials['client_email']) ||
+            empty($credentials['private_key'])
+        ) {
+            Log::error('Firebase credentials missing required keys', [
+                'path' => $this->credentialsPath,
+                'has_project_id' => !empty($credentials['project_id']),
+                'has_client_email' => !empty($credentials['client_email']),
+                'has_private_key' => !empty($credentials['private_key']),
+                'keys' => array_keys($credentials),
+            ]);
+            return;
+        }
+
+        $this->credentials = $credentials;
+        $this->projectId = $credentials['project_id'];
+
+        Log::info('Firebase credentials loaded successfully', [
+            'project_id' => $this->projectId,
+            'client_email' => $credentials['client_email'],
+        ]);
     }
 
     public function sendToToken(?string $deviceToken, string $title, string $body, array $data = []): bool
     {
-        if (empty($deviceToken)) {
+        $deviceToken = is_string($deviceToken) ? trim($deviceToken) : '';
+
+        if ($deviceToken === '') {
+            Log::warning('Firebase notification skipped: device token empty');
             return false;
         }
 
         if (empty($this->credentials) || empty($this->projectId)) {
-            Log::warning('Firebase notification skipped because credentials are missing.');
+            Log::warning('Firebase notification skipped: credentials missing', [
+                'credentials_path' => $this->credentialsPath,
+                'credentials_loaded' => !empty($this->credentials),
+                'project_id' => $this->projectId,
+            ]);
             return false;
         }
 
-        try {
+        // try {
             $accessToken = $this->getAccessToken();
 
             $payload = [
                 'message' => [
-                    'token' => trim($deviceToken),
+                    'token' => $deviceToken,
                     'notification' => [
                         'title' => $title,
                         'body' => $body,
                     ],
-                    'data' => array_map('strval', array_filter($data, static function ($value) {
-                        return $value !== null;
-                    })),
+                    'data' => $this->stringifyData($data),
                     'android' => [
                         'priority' => 'HIGH',
                         'notification' => [
                             'sound' => 'default',
                         ],
                     ],
-                    'apns' => [
-                        'headers' => [
-                            'apns-priority' => '10',
-                        ],
-                        'payload' => [
-                            'aps' => [
-                                'sound' => 'default',
-                            ],
-                        ],
-                    ],
                 ],
             ];
 
             $response = Http::withToken($accessToken)
+                ->acceptJson()
                 ->post("https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send", $payload);
 
             if (!$response->successful()) {
                 Log::error('Firebase notification failed', [
-                    'device_token' => $deviceToken,
+                    'status' => $response->status(),
                     'response' => $response->body(),
+                    'device_token' => $this->maskToken($deviceToken),
                 ]);
-
                 return false;
             }
 
-            return true;
-
-        } catch (\Throwable $e) {
-            Log::error('Firebase notification exception', [
-                'device_token' => $deviceToken,
-                'error' => $e->getMessage(),
+            Log::info('Firebase notification sent successfully', [
+                'response' => $response->json(),
+                'device_token' => $this->maskToken($deviceToken),
             ]);
 
-            return false;
-        }
+            return true;
+
+        // } catch (\Throwable $e) {
+        //     Log::error('Firebase notification exception', [
+        //         'error' => $e->getMessage(),
+        //         'device_token' => $this->maskToken($deviceToken),
+        //     ]);
+        //     return false;
+        // }
     }
 
     public function sendToTokens(array $deviceTokens, string $title, string $body, array $data = []): array
     {
+        $deviceTokens = array_values(array_unique(array_filter(array_map(function ($token) {
+            return is_string($token) ? trim($token) : '';
+        }, $deviceTokens))));
+
         $success = 0;
         $failed = 0;
 
-        $deviceTokens = array_values(array_unique(array_filter(array_map(
-            static function ($token) {
-                return is_string($token) ? trim($token) : '';
-            },
-            $deviceTokens
-        ))));
-
         foreach ($deviceTokens as $token) {
-            $sent = $this->sendToToken($token, $title, $body, $data);
-
-            if ($sent) {
+            if ($this->sendToToken($token, $title, $body, $data)) {
                 $success++;
             } else {
                 $failed++;
@@ -137,15 +178,38 @@ class FirebaseNotificationService
             'total' => count($deviceTokens),
         ];
     }
-private function resolveCredentialsPath(string $path): string
+
+    private function resolveCredentialsPath(string $path): string
     {
+        $path = trim($path, " \t\n\r\0\x0B\"'");
+
         if ($path === '') {
             return storage_path('app/firebase/firebase-adminsdk.json');
         }
 
-        return strpos($path, DIRECTORY_SEPARATOR) === 0
-            ? $path
-            : base_path($path);
+        // Windows absolute path: C:\...
+        if (preg_match('/^[A-Za-z]:[\/\\\\]/', $path)) {
+            return str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+        }
+
+        // Linux absolute path
+        if (str_starts_with($path, '/') || str_starts_with($path, '\\')) {
+            return str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+        }
+
+        $normalizedPath = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+
+        // storage/app/firebase/firebase-adminsdk.json
+        if (str_starts_with($normalizedPath, 'storage' . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR)) {
+            return base_path($normalizedPath);
+        }
+
+        // only filename
+        if (basename($normalizedPath) === $normalizedPath) {
+            return storage_path('app/firebase/' . $normalizedPath);
+        }
+
+        return base_path($normalizedPath);
     }
 
     private function getAccessToken(): string
@@ -170,29 +234,69 @@ private function resolveCredentialsPath(string $path): string
 
         $signatureInput = $jwtHeader . '.' . $jwtClaim;
 
-        openssl_sign(
+        $privateKey = str_replace('\\n', "\n", $this->credentials['private_key']);
+
+        $signed = openssl_sign(
             $signatureInput,
             $signature,
-            $this->credentials['private_key'],
+            $privateKey,
             'sha256WithRSAEncryption'
         );
 
+        if (!$signed) {
+            throw new \Exception('Firebase access token error: unable to sign JWT.');
+        }
+
         $jwt = $signatureInput . '.' . $this->base64UrlEncode($signature);
 
-        $response = Http::asForm()->post('https://oauth2.googleapis.com/token', [
-            'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-            'assertion' => $jwt,
-        ]);
+        $response = Http::asForm()
+            ->acceptJson()
+            ->post('https://oauth2.googleapis.com/token', [
+                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion' => $jwt,
+            ]);
 
         if (!$response->successful()) {
             throw new \Exception('Firebase access token error: ' . $response->body());
         }
 
-        return $response->json('access_token');
+        $accessToken = $response->json('access_token');
+
+        if (empty($accessToken)) {
+            throw new \Exception('Firebase access token missing in Google response.');
+        }
+
+        return $accessToken;
+    }
+
+    private function stringifyData(array $data): array
+    {
+        $result = [];
+
+        foreach ($data as $key => $value) {
+            if ($value === null) {
+                continue;
+            }
+
+            $result[(string) $key] = is_array($value) || is_object($value)
+                ? json_encode($value)
+                : (string) $value;
+        }
+
+        return $result;
     }
 
     private function base64UrlEncode(string $data): string
     {
         return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+    }
+
+    private function maskToken(string $token): string
+    {
+        if (strlen($token) <= 16) {
+            return '***';
+        }
+
+        return substr($token, 0, 8) . '...' . substr($token, -8);
     }
 }

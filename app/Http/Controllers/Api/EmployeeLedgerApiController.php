@@ -123,7 +123,7 @@ class EmployeeLedgerApiController extends Controller
      * POST /api/admin/employee-ledger/debit
      * body: employee_id, debit_amount, comment, date(optional), allow_negative(optional)
      */
-    public function debitExpense(Request $request)
+    public function debitExpense(Request $request, FirebaseNotificationService $firebase)
     {
         $request->validate([
             'employee_id'  => 'required|integer|exists:employee_master,employee_id',
@@ -131,7 +131,7 @@ class EmployeeLedgerApiController extends Controller
             'comment'      => 'required|string|max:2000',
             'site_id'      => 'required|integer|exists:construction_site_master,site_id',
             'date'         => 'nullable|date',
-            'status' => 'pending',
+            
         ]);
 
         $employeeId = (int) $request->employee_id;
@@ -170,6 +170,7 @@ class EmployeeLedgerApiController extends Controller
                 'comment'        => $comment,
                 'date'           => $date,
                 'enter_by'       => $enterBy,
+                'status'         => 'pending',
             ]);
 
             $employee = EmployeeMaster::find($employeeId);

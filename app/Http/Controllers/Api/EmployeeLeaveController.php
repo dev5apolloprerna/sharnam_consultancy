@@ -237,12 +237,13 @@ private function siteManagers(int $siteId)
             }
 
             // update leave
-            $leave->update([
-                'leave_date' => $newDate,
-                'leave_type' => $leaveType,
-                'comment'    => $request->comment,
-                'updated_at' => now(),
-            ]);
+        $leave->update([
+            'site_id'    => $siteId,
+            'leave_date' => $newDate,
+            'leave_type' => $leaveType,
+            'comment'    => $request->comment,
+            'updated_at' => now(),
+        ]);
 
             // upsert attendance for new date
             $attendance = EmployeeAttendance::where('employee_id', $leave->employee_id)

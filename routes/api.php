@@ -15,8 +15,8 @@ use App\Http\Controllers\Api\EmployeeLeaveManagerController;
 use App\Http\Controllers\Api\EmployeeSalaryApiController;
 use App\Http\Controllers\Api\HolidayController;
 use App\Http\Controllers\Api\EmployeeLeaveLedgerApiController;
-
-
+use App\Http\Controllers\Api\EmployeeManagerApprovalController;
+use App\Http\Controllers\Api\EmployeeNotificationController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -93,3 +93,15 @@ Route::middleware(['auth:api'])->get('employee/salary-slip/pdf', [EmployeeSalary
 /*Route::post('employee/salary/list', [EmployeeSalaryApiController::class, 'salaryList']);
 Route::post('employee/salary-slip', [EmployeeSalaryApiController::class, 'salaryPdfDownload']);
 */
+
+
+Route::middleware('auth:api')->group(function () {
+    Route::post('notifications/list', [EmployeeNotificationController::class, 'list']);
+    Route::post('notifications/read', [EmployeeNotificationController::class, 'markRead']);
+
+    Route::post('manager/leaves/list', [EmployeeManagerApprovalController::class, 'leaveList']);
+    Route::post('manager/leaves/action', [EmployeeManagerApprovalController::class, 'leaveAction']);
+
+    Route::post('manager/expenses/list', [EmployeeManagerApprovalController::class, 'expenseList']);
+    Route::post('manager/expenses/action', [EmployeeManagerApprovalController::class, 'expenseAction']);
+});

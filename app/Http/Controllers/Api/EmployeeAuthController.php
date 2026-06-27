@@ -24,6 +24,7 @@ class EmployeeAuthController extends Controller
         $rules = [
             'employee_phone' => 'required|digits:10',
             'password' => 'required|string',
+            'device_token' => 'nullable|string',
         ];
 
         $validator = Validator::make($request->all(), $rules);
@@ -76,6 +77,12 @@ class EmployeeAuthController extends Controller
         ->first();
 
         $isWorkEnd = $attendance1 ? 1 : 0;
+
+        if ($request->filled('device_token')) {
+            $employee->device_token = $request->device_token;
+            $employee->save();
+        }
+
 
 
         $token = JWTAuth::fromUser($employee);

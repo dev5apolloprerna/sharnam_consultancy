@@ -2,45 +2,48 @@
 
 namespace App\Models;
 
-use Carbon\Carbon;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Auth\Passwords\CanResetPassword as CanResetPasswordTrait;
-use Illuminate\Contracts\Auth\CanResetPassword;
-use Illuminate\Notifications\Notifiable;
-
 
 class EmployeeMaster extends Authenticatable implements JWTSubject
 {
-    use Notifiable, CanResetPasswordTrait;
-
     protected $table = 'employee_master';
     protected $primaryKey = 'employee_id';
+
     public $timestamps = true;
 
-    protected $hidden = ['password'];
-
-
     protected $fillable = [
+        'member_id',
         'employee_name',
         'employee_phone',
         'employee_email',
         'employee_address',
         'basic_salary',
-        'password',
         'profile_image',
+        'joining_date',
         'designation',
-        'resign_date',
-        'last_working_date',
+        'password',
+        'must_reset_password',
+        'temp_password_set_at',
+        'device_token',
         'iStatus',
         'isDelete',
+        'resign_date',
+        'last_working_date',
+    ];
+
+    protected $hidden = [
+        'password',
     ];
 
     protected $casts = [
+        'joining_date' => 'date',
         'resign_date' => 'date',
         'last_working_date' => 'date',
+        'temp_password_set_at' => 'datetime',
+        'iStatus' => 'integer',
+        'isDelete' => 'integer',
+        'must_reset_password' => 'integer',
     ];
 
     public function getJWTIdentifier()
@@ -48,35 +51,36 @@ class EmployeeMaster extends Authenticatable implements JWTSubject
         return $this->getKey();
     }
 
-    public function getJWTCustomClaims()
+    public function getJWTCustomClaims(): array
     {
         return [];
     }
-     public function getEmailForPasswordReset()
+
+    public function leaves()
     {
-        return $this->employee_email; // ✅ change this to your column name
+        return $this->hasMany(EmployeeLeaveMaster::class, 'employee_id', 'employee_id');
     }
 
-    public function vehicle()
+    public function expenses()
     {
-        return $this->belongsTo(VehicleMaster::class, 'vehicle_id');
+        return $this->hasMany(EmployeeCreditDebitHistory::class, 'employee_id', 'employee_id');
     }
+
     public function siteAssignments()
     {
+        return $this->hasMany(SiteAssignEmployee::class, 'site_emp_id', 'employee_id');
+    }
+
+    public function managedSites()
+    {
         return $this->hasMany(SiteAssignEmployee::class, 'site_emp_id', 'employee_id')
+            ->where('is_site_manager', 1)
             ->where('iStatus', 1)
             ->where('isDelete', 0);
     }
-    public function leaveLedgers()
-    {
-        return $this->hasMany(EmployeeLeaveLedger::class, 'employee_id', 'employee_id');
-    }
 
-    public function checkResignStatus()
+    public function notifications()
     {
-        if ($this->last_working_date && Carbon::today()->greaterThan($this->last_working_date)) {
-            $this->iStatus = 0;
-            $this->save();
-        }
+        return $this->hasMany(EmployeeNotification::class, 'employee_id', 'employee_id');
     }
 }

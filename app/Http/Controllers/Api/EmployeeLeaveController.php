@@ -91,6 +91,16 @@ class EmployeeLeaveController extends Controller
             ], 409);
         }
 
+        $managers = $this->siteManagers($siteId);
+
+        if ($managers->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active site manager found for the selected site.',
+            ], 422);
+        }
+
+
         $leave = EmployeeLeaveMaster::create([
             'employee_id' => $employeeId,
             'site_id'     => $siteId,
@@ -105,7 +115,6 @@ class EmployeeLeaveController extends Controller
         ]);
 
         $employee = EmployeeMaster::find($employeeId);
-        $managers = $this->siteManagers($siteId);
 
         $title = 'New Leave Request';
         $message = ($employee->employee_name ?? 'Employee') . ' added leave request for ' . Carbon::parse($leaveDate)->format('d-m-Y') . '.';
@@ -126,16 +135,25 @@ class EmployeeLeaveController extends Controller
             ]);
         }
 
-        $firebase->sendToTokens($managers->pluck('device_token')->toArray(), $title, $message, [
-            'type' => 'leave_request',
-            'emp_leave_id' => $leave->emp_leave_id,
-            'site_id' => $siteId,
-        ]);
+        $tokens = $managers->pluck('device_token')->filter()->unique()->values()->all();
+
+        DB::afterCommit(function () use ($firebase, $tokens, $title, $message, $leave, $siteId) {
+            $firebase->sendToTokens($tokens, $title, $message, [
+                'type' => 'leave_request',
+                'emp_leave_id' => $leave->emp_leave_id,
+                'site_id' => $siteId,
+                'screen' => 'manager_leave_approval',
+            ]);
+        });
 
         return response()->json([
             'success' => true,
-            'message' => 'Leave request sent to manager for approval.',
-            'data'    => $leave
+            'message' => 'Leave request sent to site manager for approval.',
+            'data'    => $leave,
+            'notification' => [
+                'manager_count' => $managers->count(),
+                'push_token_count' => count($tokens),
+            ],
         ], 201);
     });
 }

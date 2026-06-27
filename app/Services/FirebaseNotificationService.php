@@ -13,13 +13,13 @@ class FirebaseNotificationService
 
     public function __construct()
     {
-        $envPath = env('FIREBASE_CREDENTIALS');
 
-        if ($envPath) {
-            $this->credentialsPath = base_path($envPath);
-        } else {
-            $this->credentialsPath = storage_path('app/firebase/firebase-adminsdk.json');
-        }
+        
+        $configuredPath = config('services.firebase.credentials')
+            ?: env('FIREBASE_CREDENTIALS')
+            ?: storage_path('app/firebase/firebase-adminsdk.json');
+
+        $this->credentialsPath = $this->resolveCredentialsPath($configuredPath);
 
         if (!file_exists($this->credentialsPath)) {
             Log::error('Firebase credentials file not found', [
@@ -58,12 +58,30 @@ class FirebaseNotificationService
 
             $payload = [
                 'message' => [
-                    'token' => $deviceToken,
+                    'token' => trim($deviceToken),
                     'notification' => [
                         'title' => $title,
                         'body' => $body,
                     ],
-                    'data' => array_map('strval', $data),
+                    'data' => array_map('strval', array_filter($data, static function ($value) {
+                        return $value !== null;
+                    })),
+                    'android' => [
+                        'priority' => 'HIGH',
+                        'notification' => [
+                            'sound' => 'default',
+                        ],
+                    ],
+                    'apns' => [
+                        'headers' => [
+                            'apns-priority' => '10',
+                        ],
+                        'payload' => [
+                            'aps' => [
+                                'sound' => 'default',
+                            ],
+                        ],
+                    ],
                 ],
             ];
 
@@ -96,7 +114,12 @@ class FirebaseNotificationService
         $success = 0;
         $failed = 0;
 
-        $deviceTokens = array_values(array_unique(array_filter($deviceTokens)));
+        $deviceTokens = array_values(array_unique(array_filter(array_map(
+            static function ($token) {
+                return is_string($token) ? trim($token) : '';
+            },
+            $deviceTokens
+        ))));
 
         foreach ($deviceTokens as $token) {
             $sent = $this->sendToToken($token, $title, $body, $data);
@@ -113,6 +136,16 @@ class FirebaseNotificationService
             'failed' => $failed,
             'total' => count($deviceTokens),
         ];
+    }
+private function resolveCredentialsPath(string $path): string
+    {
+        if ($path === '') {
+            return storage_path('app/firebase/firebase-adminsdk.json');
+        }
+
+        return strpos($path, DIRECTORY_SEPARATOR) === 0
+            ? $path
+            : base_path($path);
     }
 
     private function getAccessToken(): string

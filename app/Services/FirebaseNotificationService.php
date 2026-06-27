@@ -15,74 +15,41 @@ class FirebaseNotificationService
 
     public function __construct()
     {
-        $configuredPath = config('services.firebase.credentials')
+        $configuredCredentials = config('services.firebase.credentials')
             ?: env('FIREBASE_CREDENTIALS')
             ?: 'storage/app/firebase/firebase-adminsdk.json';
 
-        $this->credentialsPath = $this->resolveCredentialsPath($configuredPath);
-
-        Log::info('Firebase credentials path check', [
-            'configured_path' => $configuredPath,
-            'resolved_path' => $this->credentialsPath,
-            'exists' => file_exists($this->credentialsPath),
-            'is_readable' => is_readable($this->credentialsPath),
-        ]);
-
-        if (!file_exists($this->credentialsPath)) {
-            Log::error('Firebase credentials file not found', [
-                'path' => $this->credentialsPath,
-            ]);
-            return;
-        }
-
-        if (!is_readable($this->credentialsPath)) {
-            Log::error('Firebase credentials file not readable', [
-                'path' => $this->credentialsPath,
-            ]);
-            return;
-        }
-
-        $fileContents = file_get_contents($this->credentialsPath);
-
-        if ($fileContents === false || trim($fileContents) === '') {
-            Log::error('Firebase credentials file empty or unreadable', [
-                'path' => $this->credentialsPath,
-            ]);
-            return;
-        }
-
-        $credentials = json_decode($fileContents, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            Log::error('Firebase credentials JSON decode failed', [
-                'path' => $this->credentialsPath,
-                'error' => json_last_error_msg(),
-                'first_100_chars' => substr($fileContents, 0, 100),
-            ]);
+        $this->credentials = $this->loadCredentials($configuredCredentials);
+        // $credentials = $this->credentials;
+        $this->projectId = $this->credentials['project_id'];
+        
+        if (empty($this->credentials)) {
             return;
         }
 
         if (
-            empty($credentials['project_id']) ||
-            empty($credentials['client_email']) ||
-            empty($credentials['private_key'])
+            empty($this->credentials['project_id']) ||
+            empty($this->credentials['client_email']) ||
+            empty($this->credentials['private_key'])
         ) {
             Log::error('Firebase credentials missing required keys', [
-                'path' => $this->credentialsPath,
-                'has_project_id' => !empty($credentials['project_id']),
-                'has_client_email' => !empty($credentials['client_email']),
-                'has_private_key' => !empty($credentials['private_key']),
-                'keys' => array_keys($credentials),
+                'credentials_path' => $this->credentialsPath,
+                'has_project_id' => !empty($this->credentials['project_id']),
+                'has_client_email' => !empty($this->credentials['client_email']),
+                'has_private_key' => !empty($this->credentials['private_key']),
+                'keys' => array_keys($this->credentials),
             ]);
+                        $this->credentials = null;
             return;
         }
 
-        $this->credentials = $credentials;
-        $this->projectId = $credentials['project_id'];
+        // $this->credentials = $credentials;
+        //$this->projectId = $credentials['project_id'];
 
         Log::info('Firebase credentials loaded successfully', [
             'project_id' => $this->projectId,
-            'client_email' => $credentials['client_email'],
+            'client_email' => $this->credentials['client_email'],
+            'credentials_path' => $this->credentialsPath,
         ]);
     }
 
@@ -94,7 +61,7 @@ class FirebaseNotificationService
             Log::warning('Firebase notification skipped: device token empty');
             return false;
         }
-
+        
         if (empty($this->credentials) || empty($this->projectId)) {
             Log::warning('Firebase notification skipped: credentials missing', [
                 'credentials_path' => $this->credentialsPath,
@@ -127,8 +94,7 @@ class FirebaseNotificationService
             $response = Http::withToken($accessToken)
                 ->acceptJson()
                 ->post("https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send", $payload);
-
-            if (!$response->successful()) {
+                if (!$response->successful()) {
                 Log::error('Firebase notification failed', [
                     'status' => $response->status(),
                     'response' => $response->body(),
@@ -148,6 +114,7 @@ class FirebaseNotificationService
         //     Log::error('Firebase notification exception', [
         //         'error' => $e->getMessage(),
         //         'device_token' => $this->maskToken($deviceToken),
+        //         'credentials_path' => $this->credentialsPath,
         //     ]);
         //     return false;
         // }
@@ -155,6 +122,7 @@ class FirebaseNotificationService
 
     public function sendToTokens(array $deviceTokens, string $title, string $body, array $data = []): array
     {
+        
         $deviceTokens = array_values(array_unique(array_filter(array_map(function ($token) {
             return is_string($token) ? trim($token) : '';
         }, $deviceTokens))));
@@ -176,7 +144,84 @@ class FirebaseNotificationService
             'total' => count($deviceTokens),
         ];
     }
+    private function loadCredentials(?string $configuredCredentials): ?array
+    {
+        $configuredCredentials = is_string($configuredCredentials)
+            ? trim($configuredCredentials, " \t\n\r\0\x0B\"'")
+            : '';
 
+        if ($configuredCredentials === '') {
+            $configuredCredentials = 'storage/app/firebase/firebase-adminsdk.json';
+        }
+
+        if ($this->looksLikeJson($configuredCredentials)) {
+            return $this->decodeCredentialsJson($configuredCredentials, 'inline FIREBASE_CREDENTIALS JSON');
+        }
+
+        $decodedBase64 = base64_decode($configuredCredentials, true);
+
+        if ($decodedBase64 !== false && $this->looksLikeJson($decodedBase64)) {
+            return $this->decodeCredentialsJson($decodedBase64, 'base64 FIREBASE_CREDENTIALS JSON');
+        }
+
+        $this->credentialsPath = $this->resolveCredentialsPath($configuredCredentials);
+
+        Log::info('Firebase credentials path check', [
+            'configured_path' => $configuredCredentials,
+            'resolved_path' => $this->credentialsPath,
+            'exists' => file_exists($this->credentialsPath),
+            'is_readable' => is_readable($this->credentialsPath),
+        ]);
+
+        if (!file_exists($this->credentialsPath)) {
+            Log::error('Firebase credentials file not found', [
+                'configured_path' => $configuredCredentials,
+                'resolved_path' => $this->credentialsPath,
+            ]);
+            return null;
+        }
+
+        if (!is_readable($this->credentialsPath)) {
+            Log::error('Firebase credentials file not readable', [
+                'path' => $this->credentialsPath,
+            ]);
+            return null;
+        }
+
+        $fileContents = file_get_contents($this->credentialsPath);
+
+        if ($fileContents === false || trim($fileContents) === '') {
+            Log::error('Firebase credentials file empty or unreadable', [
+                'path' => $this->credentialsPath,
+            ]);
+            return null;
+        }
+
+        return $this->decodeCredentialsJson($fileContents, $this->credentialsPath);
+    }
+
+    private function decodeCredentialsJson(string $json, string $source): ?array
+    {
+        $credentials = json_decode($json, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($credentials)) {
+            Log::error('Firebase credentials JSON decode failed', [
+                'source' => $source,
+                'error' => json_last_error_msg(),
+                'first_100_chars' => substr($json, 0, 100),
+            ]);
+            return null;
+        }
+
+        return $credentials;
+    }
+
+    private function looksLikeJson(string $value): bool
+    {
+        $value = ltrim($value);
+
+        return str_starts_with($value, '{') || str_starts_with($value, '[');
+    }
     private function resolveCredentialsPath(string $path): string
     {
         $path = trim($path, " \t\n\r\0\x0B\"'");

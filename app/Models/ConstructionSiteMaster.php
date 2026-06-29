@@ -32,6 +32,12 @@ class ConstructionSiteMaster extends Model
         'isDelete' => 'integer',
     ];
 
+public function siteStatus()
+    {
+        return $this->belongsTo(SiteStatus::class, 'site_status_id', 'site_status_id');
+    }
+
+
     public function assignedEmployees()
     {
         return $this->hasMany(SiteAssignEmployee::class, 'site_id', 'site_id');

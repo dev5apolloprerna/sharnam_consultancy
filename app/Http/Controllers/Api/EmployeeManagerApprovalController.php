@@ -143,19 +143,18 @@ class EmployeeManagerApprovalController extends Controller
 
             $employee = EmployeeMaster::find($leave->employee_id);
             $title = $request->status === 'accepted' ? 'Leave Approved' : 'Leave Rejected';
-            $message = 'Your leave request for ' . Carbon::parse($leave->leave_date)->format('d-m-Y') . ' has been ' . $request->status . '.';
-
-            $this->saveNotification($leave->employee_id, $manager->employee_id, 'leave_' . $request->status, $title, $message, 'employee_leave_master', $leave->emp_leave_id, [
+            $statusText = $request->status === 'accepted' ? 'approved' : 'rejected';
+            $message = 'Your leave request for ' . Carbon::parse($leave->leave_date)->format('d-m-Y') . ' has been ' . $statusText . '.';
+            $payload = [
+                'type' => 'leave_' . $request->status,
                 'emp_leave_id' => $leave->emp_leave_id,
                 'status' => $request->status,
-            ]);
+                'leave_date' => Carbon::parse($leave->leave_date)->toDateString(),
+            ];
+            $this->saveNotification($leave->employee_id, $manager->employee_id, 'leave_' . $request->status, $title, $message, 'employee_leave_master', $leave->emp_leave_id, $payload);
 
             if ($employee && !empty($employee->device_token)) {
-                $firebase->sendToTokens([$employee->device_token], $title, $message, [
-                    'type' => 'leave_' . $request->status,
-                    'emp_leave_id' => $leave->emp_leave_id,
-                    'status' => $request->status,
-                ]);
+                $firebase->sendToTokens([$employee->device_token], $title, $message, $payload);
             }
 
             return response()->json([
@@ -203,19 +202,19 @@ class EmployeeManagerApprovalController extends Controller
 
             $employee = EmployeeMaster::find($expense->employee_id);
             $title = $request->status === 'accepted' ? 'Expense Approved' : 'Expense Rejected';
-            $message = 'Your expense of ₹' . number_format((float) $expense->debit_balance, 2) . ' has been ' . $request->status . '.';
-
-            $this->saveNotification($expense->employee_id, $manager->employee_id, 'expense_' . $request->status, $title, $message, 'employee_credit_debit_history', $expense->ledger_id, [
+            $statusText = $request->status === 'accepted' ? 'approved' : 'rejected';
+            $message = 'Your expense of ₹' . number_format((float) $expense->debit_balance, 2) . ' has been ' . $statusText . '.';
+            $payload = [
+                'type' => 'expense_' . $request->status,
                 'ledger_id' => $expense->ledger_id,
                 'status' => $request->status,
-            ]);
+             'amount' => number_format((float) $expense->debit_balance, 2, '.', ''),
+            ];
+
+            $this->saveNotification($expense->employee_id, $manager->employee_id, 'expense_' . $request->status, $title, $message, 'employee_credit_debit_history', $expense->ledger_id, $payload);
 
             if ($employee && !empty($employee->device_token)) {
-                $firebase->sendToTokens([$employee->device_token], $title, $message, [
-                    'type' => 'expense_' . $request->status,
-                    'ledger_id' => $expense->ledger_id,
-                    'status' => $request->status,
-                ]);
+                $firebase->sendToTokens([$employee->device_token], $title, $message, $payload);
             }
 
             return response()->json([

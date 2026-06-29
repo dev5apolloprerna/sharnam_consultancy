@@ -7,6 +7,8 @@ use App\Models\EmployeeLeaveMaster;
 use App\Models\EmployeeMaster;
 use Illuminate\Http\Request;
 use App\Services\EmployeeLeaveLedgerService;
+use App\Services\FirebaseNotificationService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -124,7 +126,7 @@ class EmployeeLeaveManagerController extends Controller
     /**
      * Manager approve or reject employee leave
      */
-    public function managerEmployeeLeaveAction(Request $request, EmployeeLeaveLedgerService $ledgerService)
+    public function managerEmployeeLeaveAction(Request $request, EmployeeLeaveLedgerService $ledgerService, FirebaseNotificationService $firebase)
     {
         $validator = Validator::make($request->all(), [
             'emp_leave_id' => 'required|integer|exists:employee_leave_master,emp_leave_id',
@@ -211,6 +213,34 @@ class EmployeeLeaveManagerController extends Controller
             $ledgerService->debitApprovedLeave($leave, (int) $loginEmployeeId);
         }
 
+        $employee = EmployeeMaster::find($leave->employee_id);
+        $title = $leave->status === 'accepted' ? 'Leave Approved' : 'Leave Rejected';
+        $statusText = $leave->status === 'accepted' ? 'approved' : 'rejected';
+        $message = 'Your leave request for ' . Carbon::parse($leave->leave_date)->format('d-m-Y') . ' has been ' . $statusText . '.';
+        $payload = [
+            'type' => 'leave_' . $leave->status,
+            'emp_leave_id' => $leave->emp_leave_id,
+            'status' => $leave->status,
+            'leave_date' => Carbon::parse($leave->leave_date)->toDateString(),
+        ];
+
+        DB::table('employee_notifications')->insert([
+            'employee_id' => $leave->employee_id,
+            'sender_employee_id' => $loginEmployeeId,
+            'type' => 'leave_' . $leave->status,
+            'title' => $title,
+            'message' => $message,
+            'reference_table' => 'employee_leave_master',
+            'reference_id' => $leave->emp_leave_id,
+            'payload' => json_encode($payload),
+            'is_read' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        if ($employee && !empty($employee->device_token)) {
+            $firebase->sendToTokens([$employee->device_token], $title, $message, $payload);
+        }
 
         return response()->json([
             'success' => true,

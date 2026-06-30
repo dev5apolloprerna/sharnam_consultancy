@@ -15,7 +15,7 @@ class EmployeeLeaveController extends Controller
         $status = $request->get('status', 'pending'); // pending default
         $employeeId = $request->filled('employee_id') ? (int) $request->employee_id : null;
 
-        $query = EmployeeLeaveMaster::with('employee')
+        $query = EmployeeLeaveMaster::with(['employee', 'approvedBy'])
             ->where('isDelete', 0)
             ->where('iStatus', 1);
 

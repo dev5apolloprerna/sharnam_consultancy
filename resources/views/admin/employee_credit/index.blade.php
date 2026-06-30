@@ -41,6 +41,11 @@
                         <th>Credit</th>
                         <th>Debit</th>
                         <th>Running Balance</th>
+                        <th>Accept/Reject Status</th>
+                        <th>Accepted By</th>
+                        <th>Rejected By</th>
+                        <!-- <th>Action Date</th> -->
+                        <th>Reject Reason</th>
                         <th>Comment</th>
                         <th>Enter By</th>
                     </tr>
@@ -51,6 +56,8 @@
                             $creditAmount = (float) ($r->credit_balance ?? 0);
                             $debitAmount = (float) ($r->debit_balance ?? 0);
                             $runningBalance = (float) ($runningBalances[$r->ledger_id] ?? 0);
+                            $approvalStatus = $r->status ?: 'accepted';
+                            $approvalBy = $r->approvedBy?->employee_name ?? '-';
                         @endphp
                         <tr>
                             <td>{{ $rows->firstItem() + $i }}</td>
@@ -60,11 +67,25 @@
                             <td>{{ number_format($creditAmount, 2) }}</td>
                             <td>{{ number_format($debitAmount, 2) }}</td>
                             <td>{{ number_format($runningBalance, 2) }}</td>
+                            <td>
+                                @if($approvalStatus === 'accepted')
+                                    <span class="badge bg-success">Accepted</span>
+                                @elseif($approvalStatus === 'reject')
+                                    <span class="badge bg-danger">Rejected</span>
+                                @else
+                                    <span class="badge bg-warning text-dark">Pending</span>
+                                @endif
+                            </td>
+                            <td>{{ $approvalStatus === 'accepted' ? $approvalBy : '-' }}</td>
+                            <td>{{ $approvalStatus === 'reject' ? $approvalBy : '-' }}</td>
+                            <!-- <td>{{ $r->approved_at ? $r->approved_at->format('d-m-Y h:i A') : '-' }}</td> -->
+                            <td>{{ $approvalStatus === 'reject' ? ($r->reason ?: '-') : '-' }}</td>
+
                             <td>{{ $r->comment }}</td>
                             <td>{{ $r->enteredBy?->full_name ?? $r->enteredByEmployee?->employee_name ?? '-' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="9" class="text-center">No records found.</td></tr>
+                        <tr><td colspan="14" class="text-center">No records found.</td></tr>
                     @endforelse
                 </tbody>
             </table>

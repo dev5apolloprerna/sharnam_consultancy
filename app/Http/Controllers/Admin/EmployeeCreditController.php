@@ -122,7 +122,7 @@ class EmployeeCreditController extends Controller
             ->orderBy('employee_name')
             ->get();
 
-        $ledgerQuery = EmployeeCreditDebitHistory::with(['employee', 'site', 'enteredBy', 'enteredByEmployee'])
+        $ledgerQuery = EmployeeCreditDebitHistory::with(['employee', 'site', 'enteredBy', 'enteredByEmployee', 'approvedBy'])
             ->when($qEmployee, fn($qq) => $qq->where('employee_id', $qEmployee));
 
         $totalCredit = (float) (clone $ledgerQuery)->sum('credit_balance');

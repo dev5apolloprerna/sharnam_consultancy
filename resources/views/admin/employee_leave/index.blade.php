@@ -70,6 +70,9 @@
                         <th>Type</th>
                         <th>Comment</th>
                         <th>Status</th>
+                        <th>Accepted By</th>
+                        <th>Rejected By</th>
+                        <th>Action Date</th>
                         <th>Reason (if rejected)</th>
                         <th style="width:220px;">Action</th>
                     </tr>
@@ -77,6 +80,9 @@
 
                 <tbody>
                 @forelse($leaves as $i => $r)
+                     @php
+                        $approvalBy = $r->approvedBy?->employee_name ?? '-';
+                    @endphp
                     <tr>
                         <td>{{ $i+1 }}</td>
                         <td>{{ $r->employee->employee_name ?? '-' }} ({{ $r->employee->member_id ?? '-' }})</td>
@@ -98,8 +104,11 @@
                                 <span class="badge bg-secondary">-</span>
                             @endif
                         </td>
+                        <td>{{ $r->status === 'accepted' ? $approvalBy : '-' }}</td>
+                        <td>{{ $r->status === 'reject' ? $approvalBy : '-' }}</td>
+                        <td>{{ $r->approved_at ? $r->approved_at->format('d-m-Y h:i A') : '-' }}</td>
                         <td style="max-width:240px; white-space:normal;">
-                            {{ $r->reason }}
+                            {{ $r->status === 'reject' ? ($r->reason ?: '-') : '-' }}
                         </td>
                         <td>
                             <form method="POST" action="{{ route('admin.employee_leave.status') }}" class="d-inline">
@@ -131,7 +140,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="text-center">No records found</td></tr>
+                    <tr><td colspan="11" class="text-center">No records found</td></tr>
                 @endforelse
                 </tbody>
             </table>

@@ -103,6 +103,10 @@ class ConstructionSiteController extends Controller
         $site = ConstructionSiteMaster::findOrFail($id);
         $site->update($request->all());
 
+        if ((int) $request->iStatus === 0 || $this->isClosedSiteStatus($request->site_status_id)) {
+            $this->removeSiteEmployeeAndVehicleAssignments($id);
+        }
+
         return redirect()->route('admin.construction-site.index')->with('success', 'Site updated successfully.');
     }
 
@@ -159,8 +163,19 @@ public function assignEmployees(Request $request)
     DB::beginTransaction();
 
     try {
-        // Soft delete or hard delete based on your current table handling
+        // Remove old employee assignments for this site
         SiteAssignEmployee::where('site_id', $site_id)->delete();
+
+        // Remove vehicle assignments of employees who are no longer selected
+        DB::table('construction_employee_vehicle')
+            ->where('construction_id', $site_id)
+            ->when(count($employee_ids) > 0, function ($q) use ($employee_ids) {
+                $q->whereNotIn('employee_id', $employee_ids);
+            })
+            ->update([
+                'isDelete' => 1,
+                'iStatus'  => 0,
+            ]);
 
         foreach ($employee_ids as $emp_id) {
             SiteAssignEmployee::create([
@@ -170,13 +185,40 @@ public function assignEmployees(Request $request)
                 'iStatus'          => 1,
                 'isDelete'         => 0,
             ]);
+
+            // Auto get vehicle assigned to this employee from old site or vehicle master
+            $autoVehicleId = $this->getEmployeeAutoVehicleId($emp_id, $site_id);
+
+            // Check current site employee vehicle assignment
+            $existingAssignment = DB::table('construction_employee_vehicle')
+                ->where('construction_id', $site_id)
+                ->where('employee_id', $emp_id)
+                ->first();
+
+            if ($existingAssignment) {
+                DB::table('construction_employee_vehicle')
+                    ->where('id', $existingAssignment->id)
+                    ->update([
+                        'vehicle_id' => $autoVehicleId,
+                        'iStatus'    => 1,
+                        'isDelete'   => 0,
+                    ]);
+            } else {
+                DB::table('construction_employee_vehicle')->insert([
+                    'construction_id' => $site_id,
+                    'employee_id'     => $emp_id,
+                    'vehicle_id'      => $autoVehicleId,
+                    'iStatus'         => 1,
+                    'isDelete'        => 0,
+                ]);
+            }
         }
 
         DB::commit();
 
         return response()->json([
             'success' => true,
-            'message' => 'Employees assigned successfully.'
+            'message' => 'Employees assigned successfully. Vehicle auto assigned where available.'
         ]);
     } catch (\Exception $e) {
         DB::rollBack();
@@ -231,53 +273,99 @@ public function assignEmployees(Request $request)
         return view('admin.construction_site.site_accessories', compact('site', 'employees', 'assignments','accessories'));
     }
 
-   public function saveAssignment(Request $request)
-    {
-        $request->validate([
-            'site_id'     => 'required|exists:construction_site_master,site_id',
-            'employee_id' => 'required|exists:employee_master,employee_id',
-            'vehicle_id'  => 'nullable|exists:vehicle_master,vehicle_id',
-        ]);
-    
-        $alreadyAssigned = DB::table('construction_employee_vehicle')
-            ->where('construction_id', $request->site_id)
-            ->where('employee_id', $request->employee_id)
+public function saveAssignment(Request $request)
+{
+    $request->validate([
+        'site_id'     => 'required|exists:construction_site_master,site_id',
+        'employee_id' => 'required|exists:employee_master,employee_id',
+        'vehicle_id'  => 'nullable|exists:vehicle_master,vehicle_id',
+    ]);
+
+    DB::beginTransaction();
+
+    try {
+        $siteId = $request->site_id;
+        $employeeId = $request->employee_id;
+
+        // If vehicle not selected manually, auto get employee's old/default vehicle
+        $vehicleId = $request->filled('vehicle_id')
+            ? $request->vehicle_id
+            : $this->getEmployeeAutoVehicleId($employeeId, $siteId);
+
+        // Check employee already active on same site
+        $activeEmployeeAssignment = DB::table('construction_employee_vehicle')
+            ->where('construction_id', $siteId)
+            ->where('employee_id', $employeeId)
             ->where('isDelete', 0)
-            ->exists();
-    
-        if ($alreadyAssigned) {
+            ->first();
+
+        if ($activeEmployeeAssignment) {
+            DB::rollBack();
             return back()->with('error', 'This employee is already assigned to this site.');
         }
-    
-        if (!empty($request->vehicle_id)) {
-            $alreadyAssignedVehicle = DB::table('construction_employee_vehicle')
-                ->where('vehicle_id', $request->vehicle_id)
+
+        if (!empty($vehicleId)) {
+            // Vehicle cannot be assigned to another active employee
+            $vehicleAssignedToOtherEmployee = DB::table('construction_employee_vehicle')
+                ->where('vehicle_id', $vehicleId)
+                ->where('employee_id', '!=', $employeeId)
                 ->where('isDelete', 0)
                 ->exists();
-    
-            if ($alreadyAssignedVehicle) {
+
+            if ($vehicleAssignedToOtherEmployee) {
+                DB::rollBack();
                 return back()->with('error', 'This vehicle is already assigned to another employee.');
             }
         }
-    
-        DB::table('construction_employee_vehicle')->insert([
-            'construction_id' => $request->site_id,
-            'employee_id'     => $request->employee_id,
-            'vehicle_id'      => $request->filled('vehicle_id') ? $request->vehicle_id : null,
-            'iStatus'         => 1,
-            'isDelete'        => 0,
-        ]);
-    
-        return back()->with('success', 'Assign Vehicle successfully.');
+
+        // Important fix:
+        // Check old soft-deleted same record because unique key still blocks duplicate insert
+        $oldDeletedAssignment = DB::table('construction_employee_vehicle')
+            ->where('construction_id', $siteId)
+            ->where('employee_id', $employeeId)
+            ->where(function ($q) use ($vehicleId) {
+                if (empty($vehicleId)) {
+                    $q->whereNull('vehicle_id');
+                } else {
+                    $q->where('vehicle_id', $vehicleId);
+                }
+            })
+            ->first();
+
+        if ($oldDeletedAssignment) {
+            DB::table('construction_employee_vehicle')
+                ->where('id', $oldDeletedAssignment->id)
+                ->update([
+                    'iStatus'    => 1,
+                    'isDelete'   => 0,
+                    // 'updated_at' => now(),
+                ]);
+        } else {
+            DB::table('construction_employee_vehicle')->insert([
+                'construction_id' => $siteId,
+                'employee_id'     => $employeeId,
+                'vehicle_id'      => $vehicleId,
+                'iStatus'         => 1,
+                'isDelete'        => 0,
+                'created_at'      => now(),
+            ]);
+        }
+
+        DB::commit();
+
+        return back()->with('success', 'Employee and vehicle assigned successfully.');
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        return back()->with('error', 'Something went wrong: ' . $e->getMessage());
     }
-
-
+}
 
     public function deleteAssignment($id)
     {
         DB::table('construction_employee_vehicle')
             ->where('id', $id)
-            ->update(['isDelete' => 1]);
+            ->update(['isDelete' => 1, 'iStatus' => 0]);
 
         return back()->with('success', 'Assignment removed successfully.');
     }
@@ -322,6 +410,10 @@ public function assignEmployees(Request $request)
                 'role_id'         => Auth::user()->role_id ?? null,
             ]);
 
+            if ($this->isClosedSiteStatus($request->site_status_id)) {
+                $this->removeSiteEmployeeAndVehicleAssignments($request->site_id);
+            }
+
             DB::commit();
 
             return redirect()->back()->with('success', 'Site status changed successfully.');
@@ -331,5 +423,69 @@ public function assignEmployees(Request $request)
             return redirect()->back()->with('error', 'Something went wrong: ' . $e->getMessage());
         }
     }
+    private function getEmployeeAutoVehicleId($employeeId, $siteId = null)
+{
+    // First priority: last assigned vehicle from construction_employee_vehicle
+    $query = DB::table('construction_employee_vehicle')
+        ->where('employee_id', $employeeId)
+        ->whereNotNull('vehicle_id')
+        ->where('isDelete', 0);
+
+    if (!empty($siteId)) {
+        $query->where('construction_id', '!=', $siteId);
+    }
+
+    $vehicleId = $query->orderBy('id', 'desc')->value('vehicle_id');
+
+    if (!empty($vehicleId)) {
+        return $vehicleId;
+    }
+
+    // Second priority: vehicle_master employee_id mapping
+    return DB::table('vehicle_master')
+        ->where('employee_id', $employeeId)
+        ->where('iStatus', 1)
+        ->where('isDelete', 0)
+        ->orderBy('vehicle_id', 'desc')
+        ->value('vehicle_id');
+}
+
+private function isClosedSiteStatus($siteStatusId)
+{
+    $statusName = DB::table('site_status')
+        ->where('site_status_id', $siteStatusId)
+        ->value('site_status');
+
+    $statusName = strtolower(trim($statusName ?? ''));
+
+    return in_array($statusName, [
+        'inactive',
+        'complete',
+        'completed',
+        'close',
+        'closed',
+        'finish',
+        'finished',
+    ]);
+}
+
+private function removeSiteEmployeeAndVehicleAssignments($siteId)
+{
+    // Remove assigned employees
+    DB::table('site_assign_employee')
+        ->where('site_id', $siteId)
+        ->update([
+            'isDelete' => 1,
+            'iStatus'  => 0,
+        ]);
+
+    // Remove assigned employee vehicles
+    DB::table('construction_employee_vehicle')
+        ->where('construction_id', $siteId)
+        ->update([
+            'isDelete' => 1,
+            'iStatus'  => 0,
+        ]);
+}
 
 }

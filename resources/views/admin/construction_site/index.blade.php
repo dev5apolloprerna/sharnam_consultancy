@@ -121,7 +121,7 @@
                         <td>{{ $site->site_address }}</td>
                         <td>{{ $site->site_pincode }}</td>
                         <td>{{ $site->site_radious_distance }}</td>
-                        <td>{{ $site->siteStatus->site_status }}
+                        <td>{{ $site->siteStatus->site_status ?? 'Unknown' }}
                                 <button
                                     type="button"
                                     class="btn btn-sm btn-primary openStatusModal"

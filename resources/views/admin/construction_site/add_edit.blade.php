@@ -50,13 +50,24 @@
                         @if($errors->has('site_radious_distance'))<span class="text-danger">{{ $errors->first('site_radious_distance') }}</span>@endif
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Status <span style="color:red;">*</span></label>
+                        <label class="form-label">Site Status <span style="color:red;">*</span></label>
                         <select name="site_status_id" class="form-control">
                             <option value="">Select</option>
-                            <option value="1" {{ old('site_status_id', $site->site_status_id ?? '') == 1 ? 'selected' : '' }}>Active</option>
-                            <option value="0" {{ old('site_status_id', $site->site_status_id ?? '') == 0 ? 'selected' : '' }}>Inactive</option>
+                            @foreach($siteStatuses as $status)
+                                <option value="{{ $status->site_status_id }}" {{ old('site_status_id', $site->site_status_id ?? '') == $status->site_status_id ? 'selected' : '' }}>
+                                    {{ $status->site_status }}
+                                </option>
+                            @endforeach
                         </select>
                         @if($errors->has('site_status_id'))<span class="text-danger">{{ $errors->first('site_status_id') }}</span>@endif
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Active Status <span style="color:red;">*</span></label>
+                        <select name="iStatus" class="form-control">
+                            <option value="1" {{ old('iStatus', $site->iStatus ?? 1) == 1 ? 'selected' : '' }}>Active</option>
+                            <option value="0" {{ old('iStatus', $site->iStatus ?? 1) == 0 ? 'selected' : '' }}>Inactive</option>
+                        </select>
+                        @if($errors->has('iStatus'))<span class="text-danger">{{ $errors->first('iStatus') }}</span>@endif
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary">{{ isset($site) ? 'Update' : 'Submit' }}</button>

@@ -34,7 +34,8 @@ class ConstructionSiteController extends Controller
 
     public function search(Request $request)
     {
-        $query = ConstructionSiteMaster::where('isDelete', 0);
+        $query = ConstructionSiteMaster::with(['assignedEmployees.employee','siteStatus'])
+            ->where('isDelete', 0);
 
         if ($request->site_name) {
             $query->where('site_name', $request->site_name);
@@ -55,7 +56,9 @@ class ConstructionSiteController extends Controller
 
     public function create()
     {
-        return view('admin.construction_site.add_edit');
+        $siteStatuses = SiteStatus::orderBy('site_status', 'asc')->get();
+
+        return view('admin.construction_site.add_edit', compact('siteStatuses'));
     }
 
     public function store(Request $request)
@@ -65,7 +68,8 @@ class ConstructionSiteController extends Controller
             'site_address' => 'required|max:255',
             'site_pincode' => 'required|numeric',
             'site_radious_distance' => 'required|max:100',
-            'site_status_id' => 'required|integer',
+            'site_status_id' => 'required|exists:site_status,site_status_id',
+            'iStatus' => 'required|in:0,1',
             'longitude' => 'required',
             'latitude' => 'required',
         ]);
@@ -78,7 +82,9 @@ class ConstructionSiteController extends Controller
     public function edit($id)
     {
         $site = ConstructionSiteMaster::findOrFail($id);
-        return view('admin.construction_site.add_edit', compact('site'));
+        $siteStatuses = SiteStatus::orderBy('site_status', 'asc')->get();
+
+        return view('admin.construction_site.add_edit', compact('site', 'siteStatuses'));
     }
 
     public function update(Request $request, $id)
@@ -88,7 +94,8 @@ class ConstructionSiteController extends Controller
             'site_address' => 'required|max:255',
             'site_pincode' => 'required|numeric',
             'site_radious_distance' => 'required|max:100',
-            'site_status_id' => 'required|integer',
+            'site_status_id' => 'required|exists:site_status,site_status_id',
+            'iStatus' => 'required|in:0,1',
             'latitude' => 'required',
             'longitude' => 'required',
         ]);

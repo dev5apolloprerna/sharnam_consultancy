@@ -26,16 +26,32 @@ class EmployeeLocationController extends Controller
         ]);
 
         $now = now();
+        $employeeId = (int) $request->employee_id;
+        $latitude = (float) $request->latitude;
+        $longitude = (float) $request->longitude;
+        $isOutsideAssignedRadius = !$this->nearestAssignedSiteWithinRadius($employeeId, $latitude, $longitude);
+
+
         $attendanceAction = $this->syncAttendanceFromLocation(
-            (int) $request->employee_id,
-            (float) $request->latitude,
-            (float) $request->longitude,
+            $employeeId,
+            $latitude,
+            $longitude,
             $request->address,
             $now
         );
 
+        $historyComment = $this->locationHistoryComment($attendanceAction, $isOutsideAssignedRadius, $request->comments);
 
-         $latestLocation = EmployeeLocationHistory::where('employee_id', $request->employee_id)
+        if (!$historyComment) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Location is inside assigned radius; history was not stored.',
+                'attendance' => $attendanceAction,
+            ]);
+        }
+
+
+        $latestLocation = EmployeeLocationHistory::where('employee_id', $request->employee_id)
             ->where('isDelete', 0)
             ->orderByDesc('created_at')
             ->first();
@@ -43,6 +59,7 @@ class EmployeeLocationController extends Controller
         if ($latestLocation
             && (string) $latestLocation->latitude === (string) $request->latitude
             && (string) $latestLocation->longitude === (string) $request->longitude
+            && (string) $latestLocation->comments === (string) $historyComment
             && Carbon::parse($latestLocation->created_at)->gt($now->copy()->subMinutes(1))) {
             return response()->json([
                 'success' => true,
@@ -57,7 +74,7 @@ class EmployeeLocationController extends Controller
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
             'address' => $request->address,
-            'comments' => $request->comments ?? '',
+            'comments' => $historyComment ?? $request->comments,
             'iStatus' => 1,
             'isDelete' => 0,
             'created_at' =>$now
@@ -71,7 +88,24 @@ class EmployeeLocationController extends Controller
             'attendance' => $attendanceAction,
         ]);
     }
-     private function syncAttendanceFromLocation(int $employeeId, float $latitude, float $longitude, ?string $address, Carbon $now): array
+    private function locationHistoryComment(array $attendanceAction, bool $isOutsideAssignedRadius, ?string $requestComment): ?string
+    {
+        if (($attendanceAction['action'] ?? null) === 'started') {
+            return 'Start Day';
+        }
+
+        if (($attendanceAction['action'] ?? null) === 'ended') {
+            return 'End Day';
+        }
+
+        if ($isOutsideAssignedRadius) {
+            return $requestComment ?: 'Employee is outside assigned site radius.';
+        }
+
+        return null;
+    }
+
+    private function syncAttendanceFromLocation(int $employeeId, float $latitude, float $longitude, ?string $address, Carbon $now): array
     {
         if ($now->isSunday()) {
             return $this->syncSundayHolidayAttendance($employeeId, $now);

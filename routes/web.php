@@ -86,6 +86,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     Route::resource('employee', EmployeeController::class);
     Route::post('employee/bulk-delete', [EmployeeController::class, 'bulkDelete'])->name('employee.bulk-delete');
+    Route::post('employee/status', [EmployeeController::class, 'updateStatus'])->name('employee.status');
     Route::post('employee/changepassword', [EmployeeController::class, 'empchangePassword']);
 
     Route::get('employee/{id}/vehicle', [EmployeeController::class, 'getVehicle']);

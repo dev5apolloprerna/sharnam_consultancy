@@ -54,6 +54,17 @@
                         <input type="text" name="designation" class="form-control" value="{{ old('designation', $employee->designation ?? '') }}">
                         @if($errors->has('designation'))<span class="text-danger">{{ $errors->first('designation') }}</span>@endif
                     </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Status <span style="color:red;">*</span></label>
+                        <select name="iStatus" class="form-control">
+                            <option value="1" {{ (string) old('iStatus', $employee->iStatus ?? 1) === '1' ? 'selected' : '' }}>Active</option>
+                            <option value="0" {{ (string) old('iStatus', $employee->iStatus ?? 1) === '0' ? 'selected' : '' }}>Inactive</option>
+                        </select>
+                        @if($errors->has('iStatus'))<span class="text-danger">{{ $errors->first('iStatus') }}</span>@endif
+                        @if(isset($employee) && !$employee->iStatus)
+                            <small class="text-muted d-block mt-1">Select Active and update to reactivate this employee.</small>
+                        @endif
+                    </div>
                     @if(!isset($employee))
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Password <span style="color:red;">*</span></label>

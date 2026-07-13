@@ -59,7 +59,20 @@
                                     <td>{{ $employee->designation }}</td>
                                     <td>{{ $employee->basic_salary }}</td>
                                     <td>{{ $employee->vehicle->vehicle_name ?? '' }} {{ $employee->vehicle->vehicle_no ?? '' }}</td>
-                                    <td>{{ $employee->iStatus ? 'Active' : 'Inactive' }}</td>
+                                       <td>
+                                        <div class="form-check form-switch d-flex align-items-center gap-2">
+                                            <input
+                                                class="form-check-input employee-status-toggle"
+                                                type="checkbox"
+                                                role="switch"
+                                                data-id="{{ $employee->employee_id }}"
+                                                {{ $employee->iStatus ? 'checked' : '' }}
+                                            >
+                                            <span class="employee-status-label {{ $employee->iStatus ? 'text-success' : 'text-danger' }}">
+                                                {{ $employee->iStatus ? 'Active' : 'Inactive' }}
+                                            </span>
+                                        </div>
+                                    </td>
                                     <td>
                                         <a href="{{ route('admin.employee.edit', $employee->employee_id) }}" class="text-primary me-2"><i class="fas fa-edit"></i></a>
                                         <a href="javascript:void(0);" class="text-danger deleteRecord" data-id="{{ $employee->employee_id }}"><i class="fas fa-trash"></i></a>
@@ -205,6 +218,35 @@
                 location.reload();
             });
         }
+    });
+ $('.employee-status-toggle').change(function () {
+        const toggle = $(this);
+        const employeeId = toggle.data('id');
+        const status = toggle.is(':checked') ? 1 : 0;
+        const label = toggle.closest('td').find('.employee-status-label');
+
+        toggle.prop('disabled', true);
+
+        $.post("{{ route('admin.employee.status') }}", {
+            _token: '{{ csrf_token() }}',
+            employee_id: employeeId,
+            iStatus: status
+        }, function (res) {
+            label
+                .text(res.employee_status || (status ? 'Active' : 'Inactive'))
+                .toggleClass('text-success', status === 1)
+                .toggleClass('text-danger', status === 0);
+        }).fail(function (xhr) {
+            toggle.prop('checked', !status);
+            if (xhr.responseJSON && xhr.responseJSON.errors) {
+                const errors = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                alert(errors);
+                return;
+            }
+            alert('Unable to update employee status.');
+        }).always(function () {
+            toggle.prop('disabled', false);
+        });
     });
     $('.deleteRecord').click(function () {
         let id = $(this).data('id');

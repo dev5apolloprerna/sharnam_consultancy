@@ -60,6 +60,7 @@ class EmployeeController extends Controller
             'designation'      => 'required|max:200',
             'joining_date'     => 'required|date',
             'password'         => 'required|min:6',
+            'iStatus'          => 'required|in:0,1',
         ]);
     
         $employee = new EmployeeMaster();
@@ -71,7 +72,7 @@ class EmployeeController extends Controller
         $employee->designation      = $request->designation;
         $employee->joining_date     = $request->joining_date;
         $employee->password         = Hash::make($request->password);
-    
+        $employee->iStatus          = (int) $request->iStatus;
         // if you have other fields, set them here
         // $employee->vehicle_id = $request->vehicle_id;
     
@@ -108,6 +109,7 @@ class EmployeeController extends Controller
             'designation'      => 'required|max:200',
             'joining_date'     => 'required|date',
             'password'         => 'nullable|min:6',
+            'iStatus'          => 'required|in:0,1',
         ]);
     
         $employee->employee_name    = $request->employee_name;
@@ -117,7 +119,12 @@ class EmployeeController extends Controller
         $employee->basic_salary     = $request->basic_salary;
         $employee->designation      = $request->designation;
         $employee->joining_date     = $request->joining_date;
-    
+        $employee->iStatus          = (int) $request->iStatus;
+
+        if ((int) $request->iStatus === 1) {
+            $employee->resign_date = null;
+            $employee->last_working_date = null;
+        }
         // if you have other fields, set them here
         // $employee->vehicle_id = $request->vehicle_id;
     
@@ -163,6 +170,29 @@ class EmployeeController extends Controller
         return response()->json(['success' => true, 'message' => 'Selected employees deleted successfully.']);
     }
 
+ public function updateStatus(Request $request)
+    {
+        $request->validate([
+            'employee_id' => 'required|exists:employee_master,employee_id',
+            'iStatus' => 'required|in:0,1',
+        ]);
+
+        $employee = EmployeeMaster::findOrFail((int) $request->employee_id);
+        $employee->iStatus = (int) $request->iStatus;
+
+        if ($employee->iStatus === 1) {
+            $employee->resign_date = null;
+            $employee->last_working_date = null;
+        }
+
+        $employee->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Employee status updated successfully.',
+            'employee_status' => $employee->iStatus ? 'Active' : 'Inactive',
+        ]);
+    }
     public function getVehicle($id)
     {
         $vehicle = VehicleMaster::where('employee_id', $id)->first();

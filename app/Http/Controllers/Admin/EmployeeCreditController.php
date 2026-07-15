@@ -138,8 +138,21 @@ class EmployeeCreditController extends Controller
         $runningBalances = [];
 
         foreach ($allRows as $ledgerRow) {
-            $runningBalance += (float) ($ledgerRow->credit_balance ?? 0);
-            $runningBalance -= (float) ($ledgerRow->debit_balance ?? 0);
+            $creditAmount = (float) ($ledgerRow->credit_balance ?? 0);
+            $debitAmount = (float) ($ledgerRow->debit_balance ?? 0);
+
+            /*
+             * Older mobile expense entries saved the post-expense balance in
+             * credit_balance and the expense amount in debit_balance. When both
+             * columns have values, treat credit_balance as that row's resulting
+             * balance instead of adding it again as a new credit.
+             */
+            if ($debitAmount > 0 && $creditAmount > 0) {
+                $runningBalance = $creditAmount;
+            } else {
+                $runningBalance += $creditAmount;
+                $runningBalance -= $debitAmount;
+            }
             $runningBalances[$ledgerRow->ledger_id] = $runningBalance;
         }
 

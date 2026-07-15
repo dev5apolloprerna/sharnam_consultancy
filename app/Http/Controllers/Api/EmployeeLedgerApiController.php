@@ -65,17 +65,22 @@ class EmployeeLedgerApiController extends Controller
 
        $list = $rows->map(function ($r) use (&$totalCredit, &$totalDebit, &$runningBalance) {
         $creditAmount = (float) ($r->credit_balance ?? 0);
-        $debitAmount  = (float) ($r->debit_balance ?? 0);
+        $transactionCredit = $debitAmount > 0 ? 0.0 : $creditAmount;
 
         /*
-         * If expense is pending/rejected, do not count it in balance.
-         * Only accepted expense will affect total debit and running balance.
-         */
-        $balanceDebitAmount = (($r->status ?? 'accepted') === 'accepted') ? $debitAmount : 0.0;
+         * Older mobile expense entries saved the post-expense balance in
+         * credit_balance and the expense amount in debit_balance. When both
+         * columns have values, treat credit_balance as that row's resulting
+         * balance instead of adding it again as a new credit.
+*/
+        if ($debitAmount > 0 && $creditAmount > 0) {
+            $runningBalance = $creditAmount;
+        } else {
+            $runningBalance += $transactionCredit - $debitAmount;
+        }
 
-        $totalCredit += $creditAmount;
-        $totalDebit += $balanceDebitAmount;
-        $runningBalance += $creditAmount - $balanceDebitAmount;
+        $totalCredit += $transactionCredit;
+        $totalDebit += $debitAmount;
 
         return [
             'ledger_id'       => $r->ledger_id,

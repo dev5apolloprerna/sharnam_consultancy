@@ -71,13 +71,11 @@ class EmployeeLedgerApiController extends Controller
          * If expense is pending/rejected, do not count it in balance.
          * Only accepted expense will affect total debit and running balance.
          */
-        if (($r->status ?? 'accepted') !== 'accepted') {
-            $debitAmount = 0;
-        }
+        $balanceDebitAmount = (($r->status ?? 'accepted') === 'accepted') ? $debitAmount : 0.0;
 
         $totalCredit += $creditAmount;
-        $totalDebit += $debitAmount;
-        $runningBalance += $creditAmount - $debitAmount;
+        $totalDebit += $balanceDebitAmount;
+        $runningBalance += $creditAmount - $balanceDebitAmount;
 
         return [
             'ledger_id'       => $r->ledger_id,
@@ -243,8 +241,7 @@ class EmployeeLedgerApiController extends Controller
                 'ledger_id'       => 'required|integer|exists:employee_credit_debit_history,ledger_id',
                 'credit_balance'  => 'nullable|numeric|min:0',
                 'debit_balance'   => 'nullable|numeric|min:0',
-                'comment'         => 'nullable|string',
-                'date'            => 'nullable|date',
+                'comment'         => 'nullable|string'
             ]);
 
             if ($validator->fails()) {
@@ -268,8 +265,7 @@ class EmployeeLedgerApiController extends Controller
             if (
                 !$request->has('credit_balance') &&
                 !$request->has('debit_balance') &&
-                !$request->has('comment') &&
-                !$request->has('date')
+                !$request->has('comment')
             ) {
                 return response()->json([
                     'success' => false,
@@ -289,10 +285,6 @@ class EmployeeLedgerApiController extends Controller
 
             if ($request->has('comment')) {
                 $ledger->comment = $request->comment;
-            }
-
-            if ($request->has('date')) {
-                $ledger->date = $request->date;
             }
 
             $ledger->save();

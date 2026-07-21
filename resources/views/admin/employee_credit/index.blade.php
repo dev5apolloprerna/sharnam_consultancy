@@ -10,6 +10,15 @@
         <a href="{{ route('admin.employee-credit.create') }}" class="btn btn-primary">+ Add Credit</a>
     </div>
 
+    @if(session('success'))
+        <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger">{{ session('error') }}</div>
+    @endif
+
+
     <form class="card p-3 mb-3" method="GET" action="{{ route('admin.employee-credit.index') }}">
         <div class="row g-2 align-items-end">
             <div class="col-md-4">
@@ -42,6 +51,7 @@
                         <th>Debit</th>
                         <th>Running Balance</th>
                         <th>Accept/Reject Status</th>
+                                                <th>Action</th>
                         <th>Accepted By</th>
                         <th>Rejected By</th>
                         <!-- <th>Action Date</th> -->
@@ -57,7 +67,7 @@
                             $debitAmount = (float) ($r->debit_balance ?? 0);
                             $runningBalance = (float) ($runningBalances[$r->ledger_id] ?? 0);
                             $approvalStatus = $r->status ?: 'accepted';
-                            $approvalBy = $r->approvedBy?->employee_name ?? '-';
+                            $approvalBy = $r->approvedBy?->employee_name ?? $r->approvedByUser?->full_name ?? '-';
                         @endphp
                         <tr>
                             <td>{{ $rows->firstItem() + $i }}</td>
@@ -76,6 +86,27 @@
                                     <span class="badge bg-warning text-dark">Pending</span>
                                 @endif
                             </td>
+                             <td>
+                                @if($debitAmount > 0 && $approvalStatus === 'pending')
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Expense approval actions">
+                                        <form method="POST" action="{{ route('admin.employee-credit.expense-status') }}">
+                                            @csrf
+                                            <input type="hidden" name="ledger_id" value="{{ $r->ledger_id }}">
+                                            <input type="hidden" name="status" value="accepted">
+                                            <button type="submit" class="btn btn-success" onclick="return confirm('Accept this expense?')">Accept</button>
+                                        </form>
+                                        <form method="POST" action="{{ route('admin.employee-credit.expense-status') }}">
+                                            @csrf
+                                            <input type="hidden" name="ledger_id" value="{{ $r->ledger_id }}">
+                                            <input type="hidden" name="status" value="reject">
+                                            <input type="hidden" name="reason" value="">
+                                            <button type="submit" class="btn btn-danger" onclick="return setExpenseRejectReason(this.form)">Reject</button>
+                                        </form>
+                                    </div>
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
+                            </td>
                             <td>{{ $approvalStatus === 'accepted' ? $approvalBy : '-' }}</td>
                             <td>{{ $approvalStatus === 'reject' ? $approvalBy : '-' }}</td>
                             <!-- <td>{{ $r->approved_at ? $r->approved_at->format('d-m-Y h:i A') : '-' }}</td> -->
@@ -85,7 +116,7 @@
                             <td>{{ $r->enteredBy?->full_name ?? $r->enteredByEmployee?->employee_name ?? '-' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="14" class="text-center">No records found.</td></tr>
+                        <tr><td colspan="15" class="text-center">No records found.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -97,5 +128,19 @@
 </div>
 </div>
 </div>
+@endsection
 
+@section('scripts')
+<script>
+    function setExpenseRejectReason(form) {
+        var reason = window.prompt('Enter a rejection reason (optional):', '');
+
+        if (reason === null) {
+            return false;
+        }
+
+        form.querySelector('[name="reason"]').value = reason;
+        return window.confirm('Reject this expense?');
+    }
+</script>
 @endsection

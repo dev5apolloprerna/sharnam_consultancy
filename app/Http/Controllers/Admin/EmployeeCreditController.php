@@ -122,12 +122,9 @@ class EmployeeCreditController extends Controller
             ->orderBy('employee_name')
             ->get();
 
-        $ledgerQuery = EmployeeCreditDebitHistory::with(['employee', 'site', 'enteredBy', 'enteredByEmployee', 'approvedBy'])
+        $ledgerQuery = EmployeeCreditDebitHistory::with(['employee', 'site', 'enteredBy', 'enteredByEmployee', 'approvedBy', 'approvedByUser'])
             ->when($qEmployee, fn($qq) => $qq->where('employee_id', $qEmployee));
 
-        $totalCredit = (float) (clone $ledgerQuery)->sum('credit_balance');
-        $totalDebit = (float) (clone $ledgerQuery)->sum('debit_balance');
-        $totalBalance = $totalCredit - $totalDebit;
 
         $allRows = (clone $ledgerQuery)
             ->orderBy('date')
@@ -135,11 +132,18 @@ class EmployeeCreditController extends Controller
             ->get();
 
         $runningBalance = 0.0;
+        $totalCredit = 0.0;
+        $totalDebit = 0.0;
         $runningBalances = [];
 
         foreach ($allRows as $ledgerRow) {
             $creditAmount = (float) ($ledgerRow->credit_balance ?? 0);
-            $debitAmount = (float) ($ledgerRow->debit_balance ?? 0);
+            $debitAmount = $ledgerRow->status === 'reject'
+                ? 0.0
+                : (float) ($ledgerRow->debit_balance ?? 0);
+
+            $totalCredit += $debitAmount > 0 ? 0.0 : $creditAmount;
+            $totalDebit += $debitAmount;
 
             /*
              * Older mobile expense entries saved the post-expense balance in
@@ -155,12 +159,40 @@ class EmployeeCreditController extends Controller
             }
             $runningBalances[$ledgerRow->ledger_id] = $runningBalance;
         }
-
+        $totalBalance = $totalCredit - $totalDebit;
         $rows = $ledgerQuery
             ->orderByDesc('date')
             ->orderByDesc('ledger_id')
             ->paginate(20);
 
         return view('admin.employee_credit.index', compact('rows', 'employees', 'qEmployee', 'totalCredit', 'totalDebit', 'totalBalance', 'runningBalances'));
+    }
+    public function updateExpenseStatus(Request $request)
+    {
+        $validated = $request->validate([
+            'ledger_id' => 'required|integer|exists:employee_credit_debit_history,ledger_id',
+            'status' => 'required|in:accepted,reject',
+            'reason' => 'nullable|string|max:1000',
+        ]);
+
+        DB::transaction(function () use ($validated) {
+            $expense = EmployeeCreditDebitHistory::where('ledger_id', $validated['ledger_id'])
+                ->where('debit_balance', '>', 0)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($expense->status === $validated['status']) {
+                abort(422, 'This expense already has the selected status.');
+            }
+
+            $expense->update([
+                'status' => $validated['status'],
+                'reason' => $validated['status'] === 'reject' ? ($validated['reason'] ?? null) : null,
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+            ]);
+        });
+
+        return back()->with('success', 'Expense ' . $validated['status'] . ' successfully.');
     }
 }

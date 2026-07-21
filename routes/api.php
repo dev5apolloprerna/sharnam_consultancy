@@ -102,6 +102,6 @@ Route::middleware('auth:api')->group(function () {
     Route::post('manager/leaves/list', [EmployeeManagerApprovalController::class, 'leaveList']);
     Route::post('manager/leaves/action', [EmployeeManagerApprovalController::class, 'leaveAction']);
 
-    Route::post('manager/expenses/list', [EmployeeManagerApprovalController::class, 'expenseList']);
+    Route::match(['get', 'post'], 'manager/expenses/list', [EmployeeManagerApprovalController::class, 'expenseList']);
     Route::post('manager/expenses/action', [EmployeeManagerApprovalController::class, 'expenseAction']);
 });

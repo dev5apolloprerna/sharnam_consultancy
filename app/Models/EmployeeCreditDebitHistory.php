@@ -61,4 +61,8 @@ class EmployeeCreditDebitHistory extends Model
     {
         return $this->belongsTo(EmployeeMaster::class, 'approved_by', 'employee_id');
     }
+    public function approvedByUser()
+    {
+        return $this->belongsTo(User::class, 'approved_by', 'id');
+    }
 }

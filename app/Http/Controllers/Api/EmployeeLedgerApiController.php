@@ -65,6 +65,9 @@ class EmployeeLedgerApiController extends Controller
 
        $list = $rows->map(function ($r) use (&$totalCredit, &$totalDebit, &$runningBalance) {
         $creditAmount = (float) ($r->credit_balance ?? 0);
+                $debitAmount = $r->status === 'reject'
+            ? 0.0
+            : (float) ($r->debit_balance ?? 0);
         $transactionCredit = $debitAmount > 0 ? 0.0 : $creditAmount;
 
         /*

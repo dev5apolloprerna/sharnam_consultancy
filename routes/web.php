@@ -140,6 +140,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::get('employee-credit', [EmployeeCreditController::class, 'index'])->name('employee-credit.index'); // optional list
     Route::get('employee-credit/create', [EmployeeCreditController::class, 'create'])->name('employee-credit.create');
     Route::post('employee-credit', [EmployeeCreditController::class, 'store'])->name('employee-credit.store');
+    Route::post('employee-credit/expense-status', [EmployeeCreditController::class, 'updateExpenseStatus'])->name('employee-credit.expense-status');
 });
 
 Route::middleware(['auth'])->prefix('admin')->group(function () {

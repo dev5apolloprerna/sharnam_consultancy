@@ -18,7 +18,6 @@
         <div class="alert alert-danger">{{ session('error') }}</div>
     @endif
 
-
     <form class="card p-3 mb-3" method="GET" action="{{ route('admin.employee-credit.index') }}">
         <div class="row g-2 align-items-end">
             <div class="col-md-4">
@@ -51,7 +50,7 @@
                         <th>Debit</th>
                         <th>Running Balance</th>
                         <th>Accept/Reject Status</th>
-                                                <th>Action</th>
+                        <th>Action</th>
                         <th>Accepted By</th>
                         <th>Rejected By</th>
                         <!-- <th>Action Date</th> -->
@@ -86,22 +85,26 @@
                                     <span class="badge bg-warning text-dark">Pending</span>
                                 @endif
                             </td>
-                             <td>
-                                @if($debitAmount > 0 && $approvalStatus === 'pending')
+                              <td>
+                                @if($debitAmount > 0)
                                     <div class="btn-group btn-group-sm" role="group" aria-label="Expense approval actions">
-                                        <form method="POST" action="{{ route('admin.employee-credit.expense-status') }}">
-                                            @csrf
-                                            <input type="hidden" name="ledger_id" value="{{ $r->ledger_id }}">
-                                            <input type="hidden" name="status" value="accepted">
-                                            <button type="submit" class="btn btn-success" onclick="return confirm('Accept this expense?')">Accept</button>
-                                        </form>
-                                        <form method="POST" action="{{ route('admin.employee-credit.expense-status') }}">
-                                            @csrf
-                                            <input type="hidden" name="ledger_id" value="{{ $r->ledger_id }}">
-                                            <input type="hidden" name="status" value="reject">
-                                            <input type="hidden" name="reason" value="">
-                                            <button type="submit" class="btn btn-danger" onclick="return setExpenseRejectReason(this.form)">Reject</button>
-                                        </form>
+                                        @if($approvalStatus !== 'accepted')
+                                            <form method="POST" action="{{ route('admin.employee-credit.expense-status') }}">
+                                                @csrf
+                                                <input type="hidden" name="ledger_id" value="{{ $r->ledger_id }}">
+                                                <input type="hidden" name="status" value="accepted">
+                                                <button type="submit" class="btn btn-success" onclick="return confirm('Accept this expense?')">Accept</button>
+                                            </form>
+                                        @endif
+                                        @if($approvalStatus !== 'reject')
+                                            <form method="POST" action="{{ route('admin.employee-credit.expense-status') }}">
+                                                @csrf
+                                                <input type="hidden" name="ledger_id" value="{{ $r->ledger_id }}">
+                                                <input type="hidden" name="status" value="reject">
+                                                <input type="hidden" name="reason" value="">
+                                                <button type="submit" class="btn btn-danger" onclick="return setExpenseRejectReason(this.form)">Reject</button>
+                                            </form>
+                                        @endif
                                     </div>
                                 @else
                                     <span class="text-muted">-</span>

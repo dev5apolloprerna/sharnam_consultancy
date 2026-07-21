@@ -64,11 +64,12 @@ class EmployeeLedgerApiController extends Controller
         $runningBalance = 0.0;
 
        $list = $rows->map(function ($r) use (&$totalCredit, &$totalDebit, &$runningBalance) {
-        $creditAmount = (float) ($r->credit_balance ?? 0);
-                $debitAmount = $r->status === 'reject'
-            ? 0.0
-            : (float) ($r->debit_balance ?? 0);
-        $transactionCredit = $debitAmount > 0 ? 0.0 : $creditAmount;
+                $creditAmount = (float) ($r->credit_balance ?? 0);
+         $debitAmount = (float) ($r->debit_balance ?? 0);
+        $isRejected = $r->status === 'reject';
+        $balanceCredit = $isRejected ? 0.0 : $creditAmount;
+        $balanceDebit = $isRejected ? 0.0 : $debitAmount;
+        $transactionCredit = $balanceDebit > 0 ? 0.0 : $balanceCredit;
 
         /*
          * Older mobile expense entries saved the post-expense balance in
@@ -76,14 +77,14 @@ class EmployeeLedgerApiController extends Controller
          * columns have values, treat credit_balance as that row's resulting
          * balance instead of adding it again as a new credit.
 */
-        if ($debitAmount > 0 && $creditAmount > 0) {
-            $runningBalance = $creditAmount;
+        if ($balanceDebit > 0 && $balanceCredit > 0) {
+            $runningBalance = $balanceCredit;
         } else {
-            $runningBalance += $transactionCredit - $debitAmount;
+            $runningBalance += $transactionCredit - $balanceDebit;
         }
 
-        $totalCredit += $transactionCredit;
-        $totalDebit += $debitAmount;
+        $totalCredit += $creditAmount;
+        $totalDebit += $balanceDebit;
 
         return [
             'ledger_id'       => $r->ledger_id,

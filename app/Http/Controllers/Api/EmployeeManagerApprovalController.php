@@ -64,6 +64,10 @@ class EmployeeManagerApprovalController extends Controller
         $manager = auth()->guard('api')->user();
         $siteIds = $this->managerSiteIds((int) $manager->employee_id);
 
+         $request->merge([
+            'status' => strtolower(trim((string) $request->input('status', 'pending'))),
+        ]);
+
         $request->validate([
             'status' => 'nullable|in:pending,accepted,reject',
             'from' => 'nullable|date',
@@ -72,9 +76,29 @@ class EmployeeManagerApprovalController extends Controller
 
         $data = EmployeeCreditDebitHistory::query()
             ->leftJoin('employee_master', 'employee_master.employee_id', '=', 'employee_credit_debit_history.employee_id')
-            ->whereIn('employee_credit_debit_history.site_id', $siteIds)
-            ->where('employee_credit_debit_history.debit_balance', '>', 0)
-            ->when($request->filled('status'), fn ($q) => $q->where('employee_credit_debit_history.status', $request->status))
+ ->where(function ($scopeQuery) use ($siteIds, $manager) {
+                $scopeQuery->whereIn('employee_credit_debit_history.site_id', $siteIds)
+                    ->orWhereExists(function ($notificationQuery) use ($manager) {
+                        $notificationQuery->select(DB::raw(1))
+                            ->from('employee_notifications')
+                            ->whereColumn('employee_notifications.reference_id', 'employee_credit_debit_history.ledger_id')
+                            ->where('employee_notifications.reference_table', 'employee_credit_debit_history')
+                            ->where('employee_notifications.employee_id', $manager->employee_id);
+                    });
+            })
+            ->when($request->filled('status'), function ($q) use ($request) {
+                if ($request->status === 'pending') {
+                    $q->where(function ($statusQuery) {
+                        $statusQuery->whereRaw("LOWER(TRIM(COALESCE(employee_credit_debit_history.status, ''))) = ?", ['pending'])
+                            ->orWhereNull('employee_credit_debit_history.status')
+                            ->orWhere('employee_credit_debit_history.status', '');
+                    });
+
+                    return;
+                }
+
+                $q->whereRaw("LOWER(TRIM(employee_credit_debit_history.status)) = ?", [$request->status]);
+            })
             ->when($request->filled('from'), fn ($q) => $q->whereDate('employee_credit_debit_history.date', '>=', $request->from))
             ->when($request->filled('to'), fn ($q) => $q->whereDate('employee_credit_debit_history.date', '<=', $request->to))
             ->orderByDesc('employee_credit_debit_history.ledger_id')
@@ -84,8 +108,13 @@ class EmployeeManagerApprovalController extends Controller
                 'employee_master.employee_name',
                 'employee_credit_debit_history.site_id',
                 'employee_credit_debit_history.site_name',
+                'employee_credit_debit_history.credit_balance',
                 'employee_credit_debit_history.debit_balance',
                 'employee_credit_debit_history.comment',
+                DB::raw('employee_credit_debit_history.credit_balance as credit_amount'),
+                DB::raw('employee_credit_debit_history.debit_balance as debit_amount'),
+                DB::raw('CASE WHEN COALESCE(employee_credit_debit_history.debit_balance, 0) > 0 THEN employee_credit_debit_history.debit_balance ELSE employee_credit_debit_history.credit_balance END as amount'),
+                DB::raw("CASE WHEN COALESCE(employee_credit_debit_history.debit_balance, 0) > 0 THEN 'debit' ELSE 'credit' END as transaction_type"),
                 'employee_credit_debit_history.date',
                 'employee_credit_debit_history.status',
                 'employee_credit_debit_history.reason',
@@ -177,7 +206,7 @@ class EmployeeManagerApprovalController extends Controller
 
         return DB::transaction(function () use ($request, $manager, $firebase) {
             $expense = EmployeeCreditDebitHistory::where('ledger_id', $request->ledger_id)
-                ->where('debit_balance', '>', 0)
+                // ->where('debit_balance', '>', 0)
                 ->lockForUpdate()
                 ->first();
 
@@ -185,12 +214,14 @@ class EmployeeManagerApprovalController extends Controller
                 return response()->json(['status' => false, 'message' => 'Expense not found.'], 404);
             }
 
-            if (!$this->isManagerOfSite((int) $manager->employee_id, (int) $expense->site_id)) {
+            if (!$this->canManagerAccessExpense((int) $manager->employee_id, $expense)) {
                 return response()->json(['status' => false, 'message' => 'You are not manager of this site.'], 403);
             }
 
-            if ($expense->status === $request->status) {
-                return response()->json(['status' => false, 'message' => 'This expense already has the selected status.'], 409);
+            $currentStatus = strtolower(trim((string) $expense->status));
+
+            if ($currentStatus !== '' && $currentStatus !== 'pending') {
+                return response()->json(['status' => false, 'message' => 'This expense is already processed.'], 409);
             }
 
             $expense->update([
@@ -203,12 +234,13 @@ class EmployeeManagerApprovalController extends Controller
             $employee = EmployeeMaster::find($expense->employee_id);
             $title = $request->status === 'accepted' ? 'Expense Approved' : 'Expense Rejected';
             $statusText = $request->status === 'accepted' ? 'approved' : 'rejected';
-            $message = 'Your expense of ₹' . number_format((float) $expense->debit_balance, 2) . ' has been ' . $statusText . '.';
+            $amount = (float) ($expense->debit_balance > 0 ? $expense->debit_balance : $expense->credit_balance);
+            $message = 'Your expense of ₹' . number_format($amount, 2) . ' has been ' . $statusText . '.';
             $payload = [
                 'type' => 'expense_' . $request->status,
                 'ledger_id' => $expense->ledger_id,
                 'status' => $request->status,
-             'amount' => number_format((float) $expense->debit_balance, 2, '.', ''),
+                'amount' => number_format($amount, 2, '.', ''),
             ];
 
             $this->saveNotification($expense->employee_id, $manager->employee_id, 'expense_' . $request->status, $title, $message, 'employee_credit_debit_history', $expense->ledger_id, $payload);
@@ -224,6 +256,20 @@ class EmployeeManagerApprovalController extends Controller
             ]);
         });
     }
+
+     private function canManagerAccessExpense(int $managerId, EmployeeCreditDebitHistory $expense): bool
+    {
+        if ($this->isManagerOfSite($managerId, (int) $expense->site_id)) {
+            return true;
+        }
+
+        return DB::table('employee_notifications')
+            ->where('employee_id', $managerId)
+            ->where('reference_table', 'employee_credit_debit_history')
+            ->where('reference_id', $expense->ledger_id)
+            ->exists();
+    }
+
 
     private function managerSiteIds(int $managerId): array
     {

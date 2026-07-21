@@ -167,7 +167,7 @@ class EmployeeCreditController extends Controller
 
         return view('admin.employee_credit.index', compact('rows', 'employees', 'qEmployee', 'totalCredit', 'totalDebit', 'totalBalance', 'runningBalances'));
     }
-    public function updateExpenseStatus(Request $request)
+   public function updateExpenseStatus(Request $request)
     {
         $validated = $request->validate([
             'ledger_id' => 'required|integer|exists:employee_credit_debit_history,ledger_id',

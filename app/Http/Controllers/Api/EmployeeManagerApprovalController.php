@@ -189,13 +189,13 @@ class EmployeeManagerApprovalController extends Controller
                 return response()->json(['status' => false, 'message' => 'You are not manager of this site.'], 403);
             }
 
-            if ($expense->status !== 'pending') {
-                return response()->json(['status' => false, 'message' => 'This expense is already processed.'], 409);
+            if ($expense->status === $request->status) {
+                return response()->json(['status' => false, 'message' => 'This expense already has the selected status.'], 409);
             }
 
             $expense->update([
                 'status' => $request->status,
-                'reason' => $request->reason,
+                'reason' => $request->status === 'reject' ? $request->reason : null,
                 'approved_by' => $manager->employee_id,
                 'approved_at' => now(),
             ]);

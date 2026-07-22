@@ -94,9 +94,8 @@ class EmployeeLedgerApiController extends Controller
             'site_id'         => $r->site_id,
             'site_name'       => $r->site_name ?: ($r->site?->site_name),
             'comment'         => $r->comment,
-            'date'            => $r->date,
+            'date'            => date('Y-m-d',strtotime($r->date)),
             'enter_by'        => $r->enter_by,
-
             // approval fields
             'status'          => $r->status,
             'reason'          => $r->reason,

@@ -78,7 +78,7 @@ class EmployeeAuthController extends Controller
 
         $isWorkEnd = $attendance1 ? 1 : 0;
 
-        if ($request->filled('device_token')) {
+        if ($request->filled('device_token') && $employee->device_token !== $request->device_token) {
             $employee->device_token = $request->device_token;
             $employee->save();
         }
@@ -105,7 +105,45 @@ class EmployeeAuthController extends Controller
                 : null
         ]);
     }
-            public function assignedVehicleList(Request $request)
+    public function updateDeviceToken(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'employee_id' => 'required|integer',
+            'device_token' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => false, 'errors' => $validator->errors()], 422);
+        }
+
+        $employee = EmployeeMaster::where('employee_id', $request->employee_id)
+            ->where('isDelete', 0)
+            ->first();
+
+        if (!$employee) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Employee not found'
+            ], 404);
+        }
+
+        $updated = false;
+
+        if ($employee->device_token !== $request->device_token) {
+            $employee->device_token = $request->device_token;
+            $employee->save();
+            $updated = true;
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => $updated ? 'Device token updated successfully' : 'Device token already up to date',
+            'employee_id' => $employee->employee_id,
+            'device_token' => $employee->device_token,
+        ]);
+    }
+
+    public function assignedVehicleList(Request $request)
     {
         $employee = auth()->guard('api')->user();
 

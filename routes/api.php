@@ -31,9 +31,10 @@ use App\Http\Controllers\Api\EmployeeNotificationController;
 Route::post('employee/login', [EmployeeAuthController::class, 'login']);
     Route::post('employee/forgot-password', [EmployeePasswordController::class, 'forgot']);
 
-Route::middleware('auth:api')->group(function () {
+   Route::middleware('auth:api')->group(function () {
     Route::post('employee-profile', [EmployeeAuthController::class, 'profile']);
     Route::post('employee-profile/update', [EmployeeAuthController::class, 'updateProfile']);
+    Route::post('employee/device-token/update', [EmployeeAuthController::class, 'updateDeviceToken']);
     Route::post('employee/change-password', [EmployeePasswordController::class, 'changePassword']);
     Route::post('employee/dashboard', [DashboardController::class, 'dashboard']);
     

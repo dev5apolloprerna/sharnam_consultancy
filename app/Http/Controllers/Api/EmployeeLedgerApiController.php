@@ -249,7 +249,8 @@ class EmployeeLedgerApiController extends Controller
                 'ledger_id'       => 'required|integer|exists:employee_credit_debit_history,ledger_id',
                 'credit_balance'  => 'nullable|numeric|min:0',
                 'debit_balance'   => 'nullable|numeric|min:0',
-                'comment'         => 'nullable|string'
+                'comment'         => 'nullable|string',
+                'date'            => 'nullable|date'
             ]);
 
             if ($validator->fails()) {
@@ -273,7 +274,8 @@ class EmployeeLedgerApiController extends Controller
             if (
                 !$request->has('credit_balance') &&
                 !$request->has('debit_balance') &&
-                !$request->has('comment')
+                !$request->has('comment') &&
+                !$request->has('date')
             ) {
                 return response()->json([
                     'success' => false,
@@ -293,6 +295,9 @@ class EmployeeLedgerApiController extends Controller
 
             if ($request->has('comment')) {
                 $ledger->comment = $request->comment;
+            }
+            if ($request->has('date')) {
+                $ledger->date = $request->date;
             }
 
             $ledger->save();

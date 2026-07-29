@@ -124,7 +124,9 @@
     $fullDayLeave = (float) ($row->full_day_leave ?? 0);
     $halfDayLeave = (float) ($row->half_day_leave ?? 0);
     $manualDebitLeave = (float) ($row->manual_debit_leave ?? 0);
-    $lwpDays = $fullDayLeave + ($halfDayLeave * 0.5) + $manualDebitLeave;
+    $holidayLeave = (float) ($row->holiday_leave ?? 0);
+    $paidLeave = (float) ($row->paid_leave ?? 0);
+    $lwpDays = (float) ($row->chargeable_leave ?? 0);
 
     $basicSalary = (float) ($row->amount ?? 0);
     $mealAllowance = 0;
@@ -189,6 +191,12 @@
  <tr>
         <td class="label">Manual Ledger Leave:</td>
         <td class="value">{{ number_format($manualDebitLeave, 1) }}</td>
+        <td class="label">Paid Holiday Leave:</td>
+        <td class="value">{{ number_format($holidayLeave, 1) }}</td>
+    </tr>
+    <tr>
+        <td class="label">Paid Leave Allowance:</td>
+        <td class="value">{{ number_format($paidLeave, 1) }}</td>
         <td class="label"></td>
         <td class="value"></td>
     </tr>

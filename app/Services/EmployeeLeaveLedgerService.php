@@ -267,6 +267,7 @@ class EmployeeLeaveLedgerService
     {
 
         $manualDebits = EmployeeLeaveLedger::where('employee_id', $employeeId)
+            ->where('entry_type', EmployeeLeaveLedger::TYPE_MANUAL_DEBIT)
             ->whereDate(DB::raw('COALESCE(from_date, transaction_date)'), '<=', $endDate->toDateString())
             ->whereDate(DB::raw('COALESCE(to_date, from_date, transaction_date)'), '>=', $startDate->toDateString())
             ->get();

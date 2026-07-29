@@ -49,7 +49,7 @@
                                 <th>Select</th>
                                 <th>Employee Name</th>
                                 <th>Basic Salary</th>
-                                <th>Leave Count (F/H)</th>
+                                <th>Approved Leave (F/H)</th>
                                 <th>Leave Detail</th>
                                 <th>Deduction</th>
                                 <th>Leave Deduction</th>
@@ -63,8 +63,10 @@
                                         'full_day' => 0,
                                         'half_day' => 0,
                                         'manual_debit_units' => 0,
+                                        'holiday_units' => 0,
+                                        'available_paid_leave_units' => 0,
+                                        'paid_leave_units' => 0,
                                         'total_units' => 0,
-                                        'free_units' => 0,
                                         'chargeable_units' => 0,
                                         'per_day_salary' => 0,
                                         'leave_deduction' => 0,
@@ -96,8 +98,10 @@
                                             data-full-day="{{ $leaveSummary['full_day'] }}"
                                             data-half-day="{{ $leaveSummary['half_day'] }}"
                                             data-manual-debit="{{ number_format($leaveSummary['manual_debit_units'], 1, '.', '') }}"
+                                            data-holiday-leave="{{ number_format($leaveSummary['holiday_units'], 1, '.', '') }}"
                                             data-total-leave="{{ number_format($leaveSummary['total_units'], 1, '.', '') }}"
-                                            data-free-leave="{{ number_format($leaveSummary['free_units'], 1, '.', '') }}"
+                                            data-available-paid-leave="{{ number_format($leaveSummary['available_paid_leave_units'], 1, '.', '') }}"
+                                            data-paid-leave="{{ number_format($leaveSummary['paid_leave_units'], 1, '.', '') }}"
                                             data-extra-leave="{{ number_format($leaveSummary['chargeable_units'], 1, '.', '') }}"
                                             data-per-day-salary="{{ number_format($leaveSummary['per_day_salary'], 2, '.', '') }}"
                                             data-leave-deduction="{{ number_format($leaveSummary['leave_deduction'], 2, '.', '') }}"
@@ -169,11 +173,13 @@
                             <tbody>
                                 <tr><th>Employee</th><td id="modalEmployeeName">-</td></tr>
                                 <tr><th>Salary Period</th><td id="modalSalaryPeriod">-</td></tr>
-                                <tr><th>Full Day Leave</th><td id="modalFullDayLeave">-</td></tr>
-                                <tr><th>Half Day Leave</th><td id="modalHalfDayLeave">-</td></tr>
+                                <tr><th>Approved Full Day Leave</th><td id="modalFullDayLeave">-</td></tr>
+                                <tr><th>Approved Half Day Leave</th><td id="modalHalfDayLeave">-</td></tr>
                                 <tr><th>Manual Ledger Leave</th><td id="modalManualDebitLeave">-</td></tr>
+                                <tr><th>Paid Holiday Leave</th><td id="modalHolidayLeave">-</td></tr>
                                 <tr><th>Total Leave Units</th><td id="modalTotalLeaveUnits">-</td></tr>
-                                <tr><th>Available Free Leave</th><td id="modalFreeLeaveUnits">-</td></tr>
+                                <tr><th>Monthly Paid Leave Available</th><td id="modalAvailablePaidLeaveUnits">-</td></tr>
+                                <tr><th>Total Paid Leave Allowance (Including Holidays)</th><td id="modalPaidLeaveUnits">-</td></tr>
                                 <tr><th>Chargeable Leave</th><td id="modalExtraLeaveUnits">-</td></tr>
                                 <tr><th>Per Day Salary</th><td id="modalPerDaySalary">-</td></tr>
                                 <tr><th>Leave Deduction</th><td id="modalLeaveDeduction">-</td></tr>
@@ -219,8 +225,10 @@
             document.getElementById('modalFullDayLeave').textContent = this.dataset.fullDay || '0';
             document.getElementById('modalHalfDayLeave').textContent = this.dataset.halfDay || '0';
             document.getElementById('modalManualDebitLeave').textContent = this.dataset.manualDebit || '0';
+            document.getElementById('modalHolidayLeave').textContent = this.dataset.holidayLeave || '0';
             document.getElementById('modalTotalLeaveUnits').textContent = this.dataset.totalLeave || '0';
-            document.getElementById('modalFreeLeaveUnits').textContent = this.dataset.freeLeave || '0';
+            document.getElementById('modalAvailablePaidLeaveUnits').textContent = this.dataset.availablePaidLeave || '0';
+            document.getElementById('modalPaidLeaveUnits').textContent = this.dataset.paidLeave || '0';
             document.getElementById('modalExtraLeaveUnits').textContent = this.dataset.extraLeave || '0';
             document.getElementById('modalPerDaySalary').textContent = (parseFloat(this.dataset.perDaySalary || 0)).toFixed(2);
             document.getElementById('modalLeaveDeduction').textContent = (parseFloat(this.dataset.leaveDeduction || 0)).toFixed(2);

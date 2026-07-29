@@ -3,7 +3,7 @@
  namespace App\Http\Controllers\Admin;
  
  use App\Http\Controllers\Controller;
- use App\Models\EmployeeAttendance;
+ use App\Models\EmployeeLeaveMaster;
  use App\Models\EmployeeMaster;
  use App\Models\EmployeeSalaryPayment;
  use App\Models\HolidayMaster;
@@ -148,9 +148,20 @@
  
          [$periodStart, $periodEnd] = $this->salaryPeriodBounds((int) $salary->salary_month, (int) $salary->salary_year);
 
-         $salary->full_day_leave = $leaveCounts[$salary->employee_id]['full_day'] ?? 0;
-         $salary->half_day_leave = $leaveCounts[$salary->employee_id]['half_day'] ?? 0;
-          $salary->manual_debit_leave = app(EmployeeLeaveLedgerService::class)->manualDebitUnitsForPeriod((int) $salary->employee_id, $periodStart, $periodEnd);
+        $salary->full_day_leave = $leaveCounts[$salary->employee_id]['full_day'] ?? 0;
+        $salary->half_day_leave = $leaveCounts[$salary->employee_id]['half_day'] ?? 0;
+        $leaveSummary = $this->leaveSummaryForEmployee(
+            (float) $salary->amount,
+            $leaveCounts[$salary->employee_id] ?? ['full_day' => 0, 'half_day' => 0],
+            (int) $salary->employee_id,
+            (int) $salary->salary_month,
+            (int) $salary->salary_year
+        );
+        $salary->manual_debit_leave = $leaveSummary['manual_debit_units'];
+        $salary->holiday_leave = $leaveSummary['holiday_units'];
+        $salary->paid_leave = $leaveSummary['paid_leave_units'];
+        $salary->chargeable_leave = $leaveSummary['chargeable_units'];
+
 
          $pdf = Pdf::loadView('pdf.employee_salary_statement', [
              'employee' => $salary->employee,
@@ -168,84 +179,59 @@
          return $pdf->download($fileName);
      }
  
-    private function leaveCountsByEmployee(int $month, int $year, ?array $employeeIds = null): array
-     {
-       /* $startDate = Carbon::create($year, $month, 1)->startOfDay();
-        $endDate = $startDate->copy()->endOfMonth();
-        $daysInMonth = (int) $endDate->day;*/
-        [$startDate, $endDate] = $this->salaryPeriodBounds($month, $year);
-        $holidayDates = $this->holidayDateMap($startDate, $endDate);
+    private function leaveCountsByEmployee(
+    int $month,
+    int $year,
+    ?array $employeeIds = null
+): array {
+    [$startDate, $endDate] = $this->salaryPeriodBounds($month, $year);
 
-        $employeeIds = $employeeIds ?? EmployeeMaster::pluck('employee_id')->map(fn ($id) => (int) $id)->all();
-        if (empty($employeeIds)) {
-            return [];
-        }
+    $employeeIds = $employeeIds
+        ?? EmployeeMaster::pluck('employee_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
 
-        $records = EmployeeAttendance::select('employee_id', 'status', 'comments', 'start_date_time')
-            ->whereIn('employee_id', $employeeIds)
-             ->where('isDelete', 0)
-            ->whereDate('start_date_time', '>=', $startDate->toDateString())
-            ->whereDate('start_date_time', '<=', $endDate->toDateString())
-            ->orderBy('start_date_time')
-             ->get();
- 
-        $dailyWorkedUnits = [];
-        foreach ($records as $record) {
-            $employeeId = (int) $record->employee_id;
-            $date = Carbon::parse($record->start_date_time)->toDateString();
-            $leaveUnit = $this->leaveUnitFromAttendance($record->status, (string) ($record->comments ?? ''));
-            $workedUnit = max(0, 1 - $leaveUnit);
-            $dailyWorkedUnits[$employeeId][$date] = min(1.0, ($dailyWorkedUnits[$employeeId][$date] ?? 0) + $workedUnit);
-        }
-
-        $counts = [];
-        foreach ($employeeIds as $employeeId) {
-            $fullDay = 0;
-            $halfDay = 0;
-
-            for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
-                $dateString = $date->toDateString();
-                if (isset($holidayDates[$dateString])) {
-                    continue;
-                }
-                $unit = isset($dailyWorkedUnits[$employeeId][$dateString]) ? max(0, 1 - $dailyWorkedUnits[$employeeId][$dateString]) : 1.0; // if attendance missing => full leave
-
-                if ($unit >= 1) {
-                    $fullDay++;
-                } elseif ($unit > 0) {
-                    $halfDay++;
-                }
-             }
-
-            $counts[$employeeId] = [
-                'full_day' => $fullDay,
-                'half_day' => $halfDay,
-            ];
-         }
- 
-         return $counts;
-     }
-
-    private function leaveUnitFromAttendance(?string $status, string $comments): float
-    {
-        $status = strtoupper((string) $status);
-        $comments = strtoupper($comments);
-
-        if (in_array($status, ['P', 'L'], true)) {
-            return 0.0;
-        }
-
-        if ($status === 'H' || str_contains($comments, 'LEAVE (H)') || str_contains($comments, 'HALF')) {
-            return 0.5;
-        }
-
-        if ($status === 'A' || str_contains($comments, 'LEAVE (F)') || str_contains($comments, 'FULL')) {
-            return 1.0;
-        }
-
-        return 1.0;
+    if (empty($employeeIds)) {
+        return [];
     }
 
+    $approvedLeaves = EmployeeLeaveMaster::select(
+            'employee_id',
+            'leave_type'
+        )
+        ->whereIn('employee_id', $employeeIds)
+        ->where('status', 'accepted')
+        ->where('iStatus', 1)
+        ->where('isDelete', 0)
+        ->whereDate('leave_date', '>=', $startDate->toDateString())
+        ->whereDate('leave_date', '<=', $endDate->toDateString())
+        ->get()
+        ->groupBy('employee_id');
+
+    $counts = [];
+
+    foreach ($employeeIds as $employeeId) {
+        $fullDay = 0;
+        $halfDay = 0;
+
+        foreach ($approvedLeaves->get($employeeId, collect()) as $leave) {
+            if (strtoupper((string) $leave->leave_type) === 'H') {
+                $halfDay++;
+            } else {
+                $fullDay++;
+            }
+        } // Missing closing bracket was here
+
+        $counts[$employeeId] = [
+            'full_day' => $fullDay,
+            'half_day' => $halfDay,
+        ];
+    }
+
+    return $counts;
+}
+
+    
     private function leaveSummaryForEmployee(float $salary, array $employeeLeave, int $employeeId, int $month, int $year): array
     {
         $fullDayLeave = (float) ($employeeLeave['full_day'] ?? 0);
@@ -254,16 +240,15 @@
         [$startDate, $endDate] = $this->salaryPeriodBounds($month, $year);
         $ledgerService = app(EmployeeLeaveLedgerService::class);
         $manualDebitUnits = $ledgerService->manualDebitUnitsForPeriod($employeeId, $startDate, $endDate);
-        $totalLeaveUnits = $fullDayLeave + $halfDayUnits + $manualDebitUnits;
+                
+        $holidayUnits = (float) count($this->holidayDateMap($startDate, $endDate));
+        $availablePaidLeaveUnits = max(0, $ledgerService->availableUnitsForPeriod($employeeId, $startDate, $endDate));
+        $totalLeaveUnits = $fullDayLeave + $halfDayUnits + $manualDebitUnits + $holidayUnits;
+        $paidLeaveUnits = $availablePaidLeaveUnits + $holidayUnits;
+        $excessLeaveUnits = max(0, $totalLeaveUnits - $paidLeaveUnits);
 
-/*        $freeLeaveUnits = 2.0;
-        $excessLeaveUnits = max(0, $totalLeaveUnits - $freeLeaveUnits);
-*/
-        $freeLeaveUnits = $ledgerService->availableUnitsForPeriod($employeeId, $startDate, $endDate);
-        $excessLeaveUnits = max(0, $totalLeaveUnits - $freeLeaveUnits);
         $periodDays = $startDate->diffInDays($endDate) + 1;
-        $holidayDays = count($this->holidayDateMap($startDate, $endDate));
-        $payableDays = max(1, $periodDays - $holidayDays);
+        $payableDays = max(1, $periodDays - $holidayUnits);
         $perDaySalary = $salary / $payableDays;
         $leaveDeduction = round($perDaySalary * $excessLeaveUnits, 2);
 
@@ -273,8 +258,10 @@
             'full_day' => (int) $fullDayLeave,
             'half_day' => (int) $halfDayLeave,
             'manual_debit_units' => $manualDebitUnits,
+            'holiday_units' => $holidayUnits,
             'total_units' => $totalLeaveUnits,
-            'free_units' => $freeLeaveUnits,
+            'available_paid_leave_units' => $availablePaidLeaveUnits,
+            'paid_leave_units' => $paidLeaveUnits,
             'chargeable_units' => $excessLeaveUnits,
             'per_day_salary' => $perDaySalary,
             'leave_deduction' => $leaveDeduction,
